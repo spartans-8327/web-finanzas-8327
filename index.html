@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Finanzas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Pantalla inicial: pedir dinero inicial -->
+  <div id="pantallaInicio" class="pantalla-inicio oculto">
+    <div class="tarjeta-inicio">
+      <h1>💰 Mis Finanzas</h1>
+      <p>¿Con cuánto dinero comienzas?</p>
+      <div class="campo-dinero">
+        <span>$</span>
+        <input type="number" id="inputDineroInicial" placeholder="10000" step="any" autofocus>
+      </div>
+      <p class="error-mensaje oculto" id="errorDineroInicial"></p>
+      <button class="btn btn-primario btn-grande" id="btnComenzar">Comenzar</button>
+    </div>
+  </div>
+
+  <!-- App principal -->
+  <div id="app" class="app oculto">
+    <header class="encabezado">
+      <h1>💰 Mis Finanzas</h1>
+      <button class="btn btn-texto" id="btnReiniciarDatos">Reiniciar datos</button>
+    </header>
+
+    <div class="layout">
+      <!-- COLUMNA IZQUIERDA: dinero -->
+      <div class="columna columna-izquierda">
+
+        <section class="tarjeta saldo-destacado">
+          <p class="saldo-etiqueta">DINERO DISPONIBLE</p>
+          <p class="saldo-monto" id="saldoDisponible">$0</p>
+          <button class="btn btn-primario btn-grande" id="btnAbrirMovimiento">+ Registrar movimiento</button>
+        </section>
+
+        <section class="tarjeta resumen-financiero">
+          <h2>Resumen financiero</h2>
+          <div class="resumen-grid">
+            <div class="resumen-item">
+              <span class="resumen-etiqueta">Dinero inicial</span>
+              <span class="resumen-valor" id="resumenInicial">$0</span>
+            </div>
+            <div class="resumen-item ingreso">
+              <span class="resumen-etiqueta">Ingresos</span>
+              <span class="resumen-valor" id="resumenIngresos">+$0</span>
+            </div>
+            <div class="resumen-item gasto">
+              <span class="resumen-etiqueta">Gastos</span>
+              <span class="resumen-valor" id="resumenGastos">-$0</span>
+            </div>
+            <div class="resumen-item disponible">
+              <span class="resumen-etiqueta">Disponible</span>
+              <span class="resumen-valor" id="resumenDisponible">$0</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="tarjeta">
+          <div class="seccion-header">
+            <h2>Historial de movimientos</h2>
+          </div>
+
+          <div class="tabs-historial">
+            <button class="tab-btn activo" data-vista="mensual">Resumen mensual</button>
+            <button class="tab-btn" data-vista="completo">Ver todo el historial</button>
+          </div>
+
+          <!-- Vista mensual -->
+          <div id="vistaMensual" class="vista-historial">
+            <div class="navegador-mes">
+              <button class="btn btn-icono" id="btnMesAnterior">‹</button>
+              <span id="etiquetaMes" class="etiqueta-mes">Septiembre 2026</span>
+              <button class="btn btn-icono" id="btnMesSiguiente">›</button>
+            </div>
+
+            <div id="mesSinMovimientos" class="mensaje-vacio oculto">Sin movimientos registrados</div>
+
+            <div id="mesConMovimientos">
+              <div class="resumen-grid resumen-mensual">
+                <div class="resumen-item">
+                  <span class="resumen-etiqueta">Dinero inicial del periodo</span>
+                  <span class="resumen-valor" id="mesInicial">$0</span>
+                </div>
+                <div class="resumen-item ingreso">
+                  <span class="resumen-etiqueta">Ingresos</span>
+                  <span class="resumen-valor" id="mesIngresos">+$0</span>
+                </div>
+                <div class="resumen-item gasto">
+                  <span class="resumen-etiqueta">Gastos</span>
+                  <span class="resumen-valor" id="mesGastos">-$0</span>
+                </div>
+                <div class="resumen-item disponible">
+                  <span class="resumen-etiqueta">Saldo final</span>
+                  <span class="resumen-valor" id="mesSaldoFinal">$0</span>
+                </div>
+              </div>
+              <div class="conteos-mes">
+                <span><strong id="mesNumMovimientos">0</strong> movimientos</span>
+                <span><strong id="mesNumIngresos">0</strong> ingresos</span>
+                <span><strong id="mesNumGastos">0</strong> gastos</span>
+              </div>
+
+              <div id="categoriasMes" class="categorias-resumen"></div>
+
+              <div class="tabla-contenedor">
+                <table class="tabla-movimientos" id="tablaMovimientosMes">
+                  <thead>
+                    <tr>
+                      <th>Concepto</th>
+                      <th>Tipo</th>
+                      <th>Cantidad</th>
+                      <th>Fecha</th>
+                      <th>Saldo después</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista completa -->
+          <div id="vistaCompleta" class="vista-historial oculto">
+            <div class="filtros-historial">
+              <button class="filtro-btn activo" data-filtro="todos">Todos</button>
+              <button class="filtro-btn" data-filtro="ingreso">Ingresos</button>
+              <button class="filtro-btn" data-filtro="gasto">Gastos</button>
+              <select id="filtroCategoria" class="filtro-select">
+                <option value="todas">Todas las categorías</option>
+              </select>
+              <input type="date" id="filtroDesde" class="filtro-fecha" title="Desde">
+              <input type="date" id="filtroHasta" class="filtro-fecha" title="Hasta">
+            </div>
+            <div class="tabla-contenedor">
+              <table class="tabla-movimientos" id="tablaMovimientosCompleta">
+                <thead>
+                  <tr>
+                    <th>Concepto</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Fecha</th>
+                    <th>Saldo después</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- COLUMNA DERECHA: lista de compras -->
+      <div class="columna columna-derecha">
+        <section class="tarjeta">
+          <div class="seccion-header">
+            <h2>🛒 Lista de compras</h2>
+            <button class="btn btn-primario" id="btnAbrirProducto">+ Agregar producto</button>
+          </div>
+
+          <div class="resumen-compras">
+            <div class="resumen-compra-item">
+              <span class="resumen-etiqueta">Pendientes</span>
+              <span class="resumen-valor" id="comprasPendientesTotal">$0</span>
+            </div>
+            <div class="resumen-compra-item">
+              <span class="resumen-etiqueta">Realizadas</span>
+              <span class="resumen-valor" id="comprasRealizadasTotal">$0</span>
+            </div>
+            <div class="resumen-compra-item">
+              <span class="resumen-etiqueta">Total estimado</span>
+              <span class="resumen-valor" id="comprasEstimadoTotal">$0</span>
+            </div>
+          </div>
+
+          <ul id="listaCompras" class="lista-compras"></ul>
+          <div id="listaComprasVacia" class="mensaje-vacio oculto">Tu lista de compras está vacía.</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Registrar / editar movimiento -->
+  <div class="modal-overlay oculto" id="modalMovimiento">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="tituloModalMovimiento">Registrar movimiento</h3>
+        <button class="btn-cerrar" data-cerrar="modalMovimiento">&times;</button>
+      </div>
+      <form id="formMovimiento">
+        <input type="hidden" id="movimientoId">
+        <label>Concepto
+          <input type="text" id="movimientoConcepto" placeholder="Ej. Venta de playeras" maxlength="60">
+        </label>
+        <label>Tipo
+          <select id="movimientoTipo">
+            <option value="ingreso">Ingreso</option>
+            <option value="gasto">Gasto</option>
+          </select>
+        </label>
+        <label>Cantidad
+          <div class="campo-dinero">
+            <span>$</span>
+            <input type="number" id="movimientoCantidad" placeholder="500" step="any">
+          </div>
+        </label>
+        <label>Fecha
+          <input type="date" id="movimientoFecha">
+        </label>
+        <label>Categoría (opcional)
+          <input type="text" id="movimientoCategoria" placeholder="Ej. Comida" maxlength="30">
+        </label>
+        <p class="error-mensaje oculto" id="errorMovimiento"></p>
+        <button type="submit" class="btn btn-primario btn-grande">Guardar movimiento</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Agregar / editar producto -->
+  <div class="modal-overlay oculto" id="modalProducto">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="tituloModalProducto">Agregar producto</h3>
+        <button class="btn-cerrar" data-cerrar="modalProducto">&times;</button>
+      </div>
+      <form id="formProducto">
+        <input type="hidden" id="productoId">
+        <label>¿Qué necesitas comprar?
+          <input type="text" id="productoNombre" placeholder="Ej. Pintura" maxlength="60">
+        </label>
+        <label>Cantidad
+          <input type="number" id="productoCantidad" placeholder="2" step="1">
+        </label>
+        <label>Precio estimado
+          <div class="campo-dinero">
+            <span>$</span>
+            <input type="number" id="productoPrecio" placeholder="450" step="any">
+          </div>
+        </label>
+        <label>Categoría (opcional)
+          <select id="productoCategoria">
+            <option value="">Sin categoría</option>
+            <option value="Materiales">Materiales</option>
+            <option value="Escuela">Escuela</option>
+            <option value="Casa">Casa</option>
+            <option value="Comida">Comida</option>
+            <option value="Tecnología">Tecnología</option>
+            <option value="Otros">Otros</option>
+          </select>
+        </label>
+        <p class="error-mensaje oculto" id="errorProducto"></p>
+        <button type="submit" class="btn btn-primario btn-grande">Agregar a la lista</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Registrar producto como gasto -->
+  <div class="modal-overlay oculto" id="modalGasto">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Registrar como gasto</h3>
+        <button class="btn-cerrar" data-cerrar="modalGasto">&times;</button>
+      </div>
+      <form id="formGasto">
+        <input type="hidden" id="gastoProductoId">
+        <p class="gasto-info">
+          <strong id="gastoConcepto"></strong><br>
+          <span id="gastoCantidadInfo"></span>
+        </p>
+        <label>Precio real
+          <div class="campo-dinero">
+            <span>$</span>
+            <input type="number" id="gastoPrecioReal" step="any">
+          </div>
+        </label>
+        <p class="ayuda-texto">Si no editas el precio, se usará el precio estimado.</p>
+        <label>Fecha
+          <input type="date" id="gastoFecha">
+        </label>
+        <p class="error-mensaje oculto" id="errorGasto"></p>
+        <button type="submit" class="btn btn-primario btn-grande">Confirmar gasto</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Advertencia de gasto duplicado -->
+  <div class="modal-overlay oculto" id="modalDuplicado">
+    <div class="modal modal-pequeno">
+      <div class="modal-header">
+        <h3>Ya registrado</h3>
+        <button class="btn-cerrar" data-cerrar="modalDuplicado">&times;</button>
+      </div>
+      <p>Este producto ya fue registrado como gasto.</p>
+      <div class="modal-acciones">
+        <button class="btn btn-secundario" data-cerrar="modalDuplicado">Cancelar</button>
+        <button class="btn btn-primario" id="btnRegistrarOtroGasto">Registrar otro gasto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirmar eliminación (movimiento o producto) -->
+  <div class="modal-overlay oculto" id="modalConfirmarEliminar">
+    <div class="modal modal-pequeno">
+      <div class="modal-header">
+        <h3>Confirmar eliminación</h3>
+        <button class="btn-cerrar" data-cerrar="modalConfirmarEliminar">&times;</button>
+      </div>
+      <p id="mensajeConfirmarEliminar">¿Deseas eliminar este elemento?</p>
+      <div class="modal-acciones">
+        <button class="btn btn-secundario" data-cerrar="modalConfirmarEliminar">Cancelar</button>
+        <button class="btn btn-peligro" id="btnConfirmarEliminar">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Reiniciar datos -->
+  <div class="modal-overlay oculto" id="modalReiniciar">
+    <div class="modal modal-pequeno">
+      <div class="modal-header">
+        <h3>Reiniciar datos</h3>
+        <button class="btn-cerrar" data-cerrar="modalReiniciar">&times;</button>
+      </div>
+      <p class="texto-advertencia">Esta acción eliminará todo tu historial, saldo y lista de compras. Esta acción no se puede deshacer.</p>
+      <div class="modal-acciones">
+        <button class="btn btn-secundario" data-cerrar="modalReiniciar">Cancelar</button>
+        <button class="btn btn-peligro" id="btnConfirmarReiniciar">Sí, eliminar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificaciones tipo toast -->
+  <div id="toastContenedor" class="toast-contenedor"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
