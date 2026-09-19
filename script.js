@@ -132,9 +132,7 @@
     rellenarSelectores();
     aplicarPreferencias();
 
-    // Sin Supabase la contraseña no se comprueba: hay que decirlo donde se
-    // escribe, no solo en el aviso general de la parte superior.
-    mostrar(el('avisoLoginLocal'), !Datos.configurado());
+    prepararFormularioAcceso();
 
     Datos.alCambiarSesion(function () {
       aplicarModoAcceso();
@@ -171,11 +169,27 @@
     window.addEventListener('focus', refrescar);
   }
 
+  /*
+    En modo demostración no existe contraseña que verificar, así que el campo
+    se retira del formulario: de ese modo es imposible que la pantalla aparente
+    haber validado una credencial. Con Supabase configurado el formulario es el
+    normal, con usuario y contraseña.
+  */
+  function prepararFormularioAcceso() {
+    var demo = Datos.esDemostracion();
+    mostrar(el('avisoLoginDemo'), demo);
+    mostrar(el('campoPassword'), !demo);
+    el('loginPassword').disabled = demo;
+    if (demo) el('loginPassword').value = '';
+    el('btnEntrar').textContent = demo ? 'Entrar en modo demostración' : 'Iniciar sesión';
+    el('btnEntrar').dataset.textoOriginal = el('btnEntrar').textContent;
+  }
+
   function mostrarAvisoDeModo() {
     if (leerPrefs().avisoCerrado === true && Datos.configurado()) return;
     if (!Datos.configurado()) {
       texto('avisoModoTexto',
-        'Modo local de prueba: Supabase todavía no está configurado, así que los datos se guardan solo en este navegador y no se comparten entre dispositivos. Edita config.js con la URL y la clave anon de tu proyecto.');
+        'Modo demostración: no hay proyecto de Supabase configurado. No se verifica ninguna credencial y los datos se guardan solo en este navegador, sin compartirse entre dispositivos. Edita config.js con la URL y la clave anon de tu proyecto para activar el acceso real.');
       mostrar(el('avisoModo'), true);
     }
   }
@@ -225,13 +239,18 @@
 
   function aplicarModoAcceso() {
     var editor = Datos.autenticado();
+    var demo = Datos.sesionDeDemostracion();
     document.body.classList.toggle('editor', editor);
 
     var chip = el('chipSesion');
-    chip.dataset.modo = editor ? 'autenticado' : 'publico';
-    texto('chipSesionTexto', editor ? 'Sesión iniciada' : 'Modo consulta');
+    chip.dataset.modo = editor ? (demo ? 'demostracion' : 'autenticado') : 'publico';
+    texto('chipSesionTexto', editor
+      ? (demo ? 'Modo demostración' : 'Sesión iniciada')
+      : 'Modo consulta');
     chip.title = editor
-      ? 'Sesión iniciada como ' + Datos.usuarioVisible()
+      ? (demo
+        ? 'Sesión de demostración como ' + Datos.usuarioVisible() + ': sin verificación de credenciales'
+        : 'Sesión iniciada como ' + Datos.usuarioVisible())
       : 'Estás viendo la información pública del equipo';
 
     var btn = el('btnSesion');
@@ -240,7 +259,9 @@
     btn.classList.toggle('btn-ghost', editor);
 
     texto('pieEstado', editor
-      ? 'Sesión: ' + Datos.usuarioVisible() + (Datos.configurado() ? '' : ' · modo local')
+      ? (demo
+        ? 'Demostración: ' + Datos.usuarioVisible() + ' · sin autenticación real'
+        : 'Sesión: ' + Datos.usuarioVisible())
       : 'Consulta pública · solo lectura');
   }
 
@@ -1296,14 +1317,15 @@
   async function iniciarSesion(evento) {
     evento.preventDefault();
     mostrarError('errorLogin', '');
+    var demo = Datos.esDemostracion();
     var usuario = el('loginUsuario').value.trim();
-    var pass = el('loginPassword').value;
+    var pass = demo ? '' : el('loginPassword').value;
     if (!usuario) {
       mostrarError('errorLogin', 'Escribe el usuario del equipo.');
       el('loginUsuario').focus();
       return;
     }
-    if (!pass) {
+    if (!demo && !pass) {
       mostrarError('errorLogin', 'Escribe la contraseña.');
       el('loginPassword').focus();
       return;
@@ -1315,7 +1337,11 @@
       await Datos.iniciarSesion(usuario, pass);
       cerrarModal('modalLogin');
       el('formLogin').reset();
-      toast('Sesión iniciada como ' + Datos.usuarioVisible() + '.', 'exito');
+      prepararFormularioAcceso();
+      toast(Datos.sesionDeDemostracion()
+        ? 'Modo demostración como ' + Datos.usuarioVisible() + '. No se verificó ninguna credencial.'
+        : 'Sesión iniciada como ' + Datos.usuarioVisible() + '.',
+        Datos.sesionDeDemostracion() ? 'info' : 'exito');
       aplicarModoAcceso();
       await cargarDatos();
     } catch (e) {
@@ -1326,14 +1352,21 @@
   }
 
   async function cerrarSesion() {
+    var problema = null;
     try {
       await Datos.cerrarSesion();
-      toast('Sesión cerrada. Sigues viendo la información en modo consulta.', 'info');
-      aplicarModoAcceso();
-      await cargarDatos();
     } catch (e) {
-      toast('No se pudo cerrar la sesión: ' + e.message, 'error');
+      problema = e.message;
     }
+    // Pase lo que pase, la interfaz vuelve al modo consulta y se recargan
+    // los datos con los permisos de visitante.
+    aplicarModoAcceso();
+    prepararFormularioAcceso();
+    await cargarDatos();
+    toast(problema
+      ? problema
+      : 'Sesión cerrada. Sigues viendo la información en modo consulta.',
+      problema ? 'error' : 'info');
   }
 
   /* ==================================================================

@@ -40,7 +40,8 @@ estáticos que se pueden abrir con cualquier servidor web.
 | `config.js` | URL y clave pública de Supabase, y la relación usuario → cuenta |
 | `schema.sql` | Tablas, índices y políticas de seguridad |
 | `tests/core.test.js` | 149 pruebas de la lógica financiera |
-| `tests/auth.test.js` | 48 pruebas del acceso con usuario y contraseña |
+| `tests/auth.test.js` | 59 pruebas del acceso con usuario y contraseña |
+| `tests/auth-real.sh` | Prueba contra Supabase Auth (GoTrue) real, sin mocks |
 | `tests/ui.test.js` | 120 pruebas end-to-end en un navegador real |
 | `tests/rls.test.sql` | Pruebas de las políticas de seguridad contra PostgreSQL |
 
@@ -143,10 +144,19 @@ npx http-server -p 8000
 
 Abre `http://localhost:8000`.
 
-**Modo local de prueba:** si `config.js` todavía tiene los valores de ejemplo,
-la aplicación arranca guardando en el navegador y lo avisa en pantalla. Sirve
-para revisar la interfaz; **no** sincroniza entre dispositivos. En cuanto
-pongas las claves reales, la fuente de verdad pasa a ser Supabase.
+### Modo demostración
+
+Si `config.js` todavía tiene los valores de ejemplo, la aplicación arranca en
+**modo demostración** y lo anuncia en pantalla.
+
+Ese modo **no autentica**: la pantalla de acceso ni siquiera muestra el campo
+de contraseña, porque no habría nada que verificar. Solo deja entrar a los
+usuarios declarados en `config.js`, guarda los datos en este navegador y marca
+la sesión como de demostración en el encabezado y en el pie.
+
+Sirve para revisar la interfaz antes de tener un proyecto de Supabase. En
+cuanto pongas las claves reales, el campo de contraseña aparece y la
+verificación la hace Supabase Auth.
 
 ---
 
@@ -245,7 +255,19 @@ NODE_PATH=$(npm root -g) node tests/ui.test.js
 # Políticas de seguridad contra un PostgreSQL local
 # (simula el esquema auth y los roles anon / authenticated de Supabase)
 psql -f tests/rls.test.sql
+
+# Autenticación REAL: levanta GoTrue (el servidor de Supabase Auth) sobre
+# PostgreSQL y prueba el acceso con contraseñas verificadas de verdad.
+# Requiere Go 1.21+, PostgreSQL 16 y salida a internet la primera vez.
+bash tests/auth-real.sh
 ```
+
+`tests/auth-real.sh` comprueba, sin simulaciones, que usuario y contraseña
+correctos conceden acceso; que una contraseña incorrecta o un usuario
+inexistente se rechazan con el mismo mensaje; que cerrar sesión invalida el
+token también en el servidor; que la contraseña se guarda como hash bcrypt; y
+que las políticas de RLS conceden y deniegan usando el identificador real del
+token emitido por Supabase.
 
 `tests/ui.test.js` recorre el caso obligatorio completo: dinero inicial,
 ingresos, gastos, compras, precio estimado contra precio real, duplicados,

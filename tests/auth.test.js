@@ -1,6 +1,9 @@
 /* =========================================================================
    Pruebas del acceso con usuario y contraseña (data.js).
 
+   Para la prueba contra Supabase Auth REAL (GoTrue, con contraseñas
+   verificadas de verdad) ver tests/auth-real.sh.
+
    Verifican la traducción usuario <-> correo técnico y el manejo de los
    errores reales de Supabase Auth, usando un cliente simulado que responde
    exactamente lo que responde Supabase. La contraseña nunca se almacena:
@@ -147,6 +150,68 @@ function cargarDatos(respuestaForzada) {
     igual('Error "' + crudo.slice(0, 34) + '…" se traduce a un mensaje claro', msg, esperado);
     check('  y no se muestra el texto original de Supabase', msg !== crudo);
   }
+
+  /* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  bloque('MODO DEMOSTRACIÓN · SEPARADO DE LA AUTENTICACIÓN REAL');
+
+  // Sin credenciales de Supabase la aplicación entra en modo demostración.
+  function cargarSinSupabase() {
+    const ventana = {
+      SUPABASE_CONFIG: { url: 'TU_PROJECT_URL', anonKey: 'TU_ANON_KEY' },
+      CUENTAS_CONFIG: { cuentas: { 'Spartans8327': CUENTA_OK }, dominioCuentas: 'spartans8327.app' },
+      supabase: { createClient: () => clienteSimulado() }
+    };
+    const almacen = {};
+    global.localStorage = {
+      getItem: k => (k in almacen ? almacen[k] : null),
+      setItem: (k, v) => { almacen[k] = String(v); },
+      removeItem: k => { delete almacen[k]; }
+    };
+    new Function('window', fs.readFileSync(path.join(__dirname, '..', 'data.js'), 'utf8'))(ventana);
+    return { Datos: ventana.Datos, almacen: almacen };
+  }
+
+  const demo = cargarSinSupabase();
+  await demo.Datos.iniciar();
+  igual('Sin credenciales se activa el modo demostración', demo.Datos.esDemostracion(), true);
+  igual('El modo demostración NO se considera configurado', demo.Datos.configurado(), false);
+
+  const usuarioDemo = await demo.Datos.iniciarSesion('Spartans8327');
+  igual('La sesión de demostración queda marcada como tal',
+    demo.Datos.sesionDeDemostracion(), true);
+  igual('Muestra el nombre de usuario configurado', demo.Datos.usuarioVisible(), 'Spartans8327');
+  check('El objeto de sesión declara que es demostración', usuarioDemo.demostracion === true);
+
+  // Lo esencial: no se puede fingir un acceso con una contraseña arbitraria.
+  const antes = JSON.stringify(demo.almacen);
+  await demo.Datos.iniciarSesion('Spartans8327', 'contraseñaInventada');
+  const despues = JSON.stringify(demo.almacen);
+  check('Una contraseña arbitraria no se almacena en ningún sitio',
+    despues.indexOf('contraseñaInventada') === -1 && antes.indexOf('contrase') === -1);
+  check('El almacenamiento del navegador no guarda contraseñas',
+    !/password|contrase/i.test(despues));
+
+  let errorDemo = null;
+  try { await demo.Datos.iniciarSesion('CualquieraOtro', 'loquesea'); }
+  catch (e) { errorDemo = e.message; }
+  check('El modo demostración solo admite usuarios declarados en config.js',
+    /config\.js/.test(errorDemo || ''), errorDemo);
+
+  // Con Supabase configurado el backend de demostración es inalcanzable.
+  const produccion = cargarDatos();
+  await produccion.iniciar();
+  igual('Con credenciales NO hay modo demostración', produccion.esDemostracion(), false);
+  await produccion.iniciarSesion('Spartans8327', CLAVE_OK);
+  igual('Una sesión real nunca se marca como demostración',
+    produccion.sesionDeDemostracion(), false);
+  let errorSalvaguarda = null;
+  try { await produccion.__backendDemoIniciarSesion(CUENTA_OK); }
+  catch (e) { errorSalvaguarda = e.message; }
+  check('La salvaguarda impide usar el acceso de demostración en producción',
+    /no está disponible|gestiona Supabase/i.test(errorSalvaguarda || ''), errorSalvaguarda);
+
+  delete global.localStorage;
 
   /* ------------------------------------------------------------------ */
   bloque('SEGURIDAD DEL CÓDIGO FUENTE');

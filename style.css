@@ -131,6 +131,9 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 .chip-estado .punto { width: 6px; height: 6px; border-radius: 50%; background: var(--texto-3); }
 .chip-estado[data-modo="autenticado"] { border-color: rgba(52,211,153,.35); color: var(--verde); background: rgba(52,211,153,.08); }
 .chip-estado[data-modo="autenticado"] .punto { background: var(--verde); box-shadow: 0 0 9px var(--verde); }
+/* La sesión de demostración se distingue a simple vista de una real. */
+.chip-estado[data-modo="demostracion"] { border-color: rgba(245,183,64,.38); color: var(--ambar); background: rgba(245,183,64,.09); }
+.chip-estado[data-modo="demostracion"] .punto { background: var(--ambar); box-shadow: 0 0 9px var(--ambar); }
 
 /* Navegación */
 .nav { border-top: 1px solid var(--borde-suave); }
@@ -717,12 +720,13 @@ input[type="date"].control { color-scheme: dark; }
 }
 .aviso-linea b { font-family: var(--mono); }
 
-.aviso-local {
-  background: rgba(245,183,64,.08);
-  border-color: rgba(245,183,64,.26);
+.aviso-demo {
+  background: rgba(245,183,64,.09);
+  border-color: rgba(245,183,64,.3);
   color: #F1D293;
+  text-align: left;
 }
-.aviso-local code { font-family: var(--mono); font-size: .92em; }
+.aviso-demo code { font-family: var(--mono); font-size: .92em; }
 
 .resumen-producto {
   padding: 13px; margin-bottom: 15px;

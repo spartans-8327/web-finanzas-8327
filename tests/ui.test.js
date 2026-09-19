@@ -70,13 +70,16 @@ function servidor() {
   const saldo = () => page.textContent('#saldoDisponible').then(t => t.trim());
   const visible = sel => page.isVisible(sel);
 
-  async function login(usuario = 'Spartans8327', pass = 'spartans8327') {
-    // Se usa el botón visible: el de la pantalla vacía o el del encabezado.
+  /*
+    Estas pruebas corren en MODO DEMOSTRACIÓN (sin proyecto de Supabase), que
+    no pide contraseña a propósito. La autenticación real, con contraseñas
+    verificadas, se prueba en tests/auth-real.sh contra un GoTrue auténtico.
+  */
+  async function login(usuario = 'Spartans8327') {
     const botonLogin = (await page.isVisible('#btnSesionVacio')) ? '#btnSesionVacio' : '#btnSesion';
     await page.click(botonLogin);
     await page.waitForSelector('#modalLogin:not([hidden])');
     await page.fill('#loginUsuario', usuario);
-    await page.fill('#loginPassword', pass);
     await page.click('#btnEntrar');
     await page.waitForSelector('#modalLogin', { state: 'hidden', timeout: 5000 });
   }
@@ -132,15 +135,18 @@ function servidor() {
     check('La aplicación carga sin bloquearse', await visible('#pantallaSinDatos'));
     check('Un visitante sin datos ve el aviso de "sin información publicada"',
       (await page.textContent('#pantallaSinDatos')).includes('Todavía no hay información publicada'));
-    check('Se detecta el modo local y se avisa', await visible('#avisoModo'));
+    check('Se detecta el modo demostración y se avisa', await visible('#avisoModo'));
+    check('El aviso explica que no se verifica ninguna credencial',
+      /no se verifica ninguna credencial/i.test(await page.textContent('#avisoModoTexto')));
 
     /* =====================================================================
        §36 LOGIN Y §11 DINERO INICIAL
        ===================================================================== */
     bloque('§36 LOGIN · §11 DINERO INICIAL');
     await login();
-    check('Tras iniciar sesión aparece la pantalla de dinero inicial', await visible('#pantallaInicio'));
-    igual('El chip de sesión indica que hay sesión', (await page.textContent('#chipSesionTexto')).trim(), 'Sesión iniciada');
+    check('Tras entrar aparece la pantalla de dinero inicial', await visible('#pantallaInicio'));
+    igual('El indicador distingue la demostración de una sesión real',
+      (await page.textContent('#chipSesionTexto')).trim(), 'Modo demostración');
 
     // Validaciones del dinero inicial
     await page.click('#formDineroInicial button[type=submit]');
@@ -447,8 +453,8 @@ function servidor() {
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('#app:not([hidden])', { timeout: 8000 });
     igual('Tras recargar el navegador el saldo se conserva', await saldo(), '$9,500');
-    check('Tras recargar la sesión sigue iniciada',
-      (await page.textContent('#chipSesionTexto')).includes('Sesión iniciada'));
+    check('Tras recargar la sesión sigue abierta',
+      (await page.textContent('#chipSesionTexto')).includes('Modo demostración'));
     await page.click('.nav-item[data-vista="compras"]');
     igual('Tras recargar las compras se conservan', await tarjetas().count(), 1);
 
@@ -544,43 +550,33 @@ function servidor() {
     check('La pantalla de acceso no menciona ningún correo',
       !/@/.test(await page.textContent('#modalLogin')));
 
-    // --- Caso 2: usuario incorrecto + contraseña correcta ---
+    // --- El modo demostración no simula una verificación de contraseña ---
+    check('En demostración se advierte que no se verifica ninguna credencial',
+      await page.isVisible('#avisoLoginDemo'));
+    check('El aviso remite a configurar config.js',
+      (await page.textContent('#avisoLoginDemo')).includes('config.js'));
+    check('En demostración NO se muestra el campo de contraseña',
+      !(await page.isVisible('#campoPassword')));
+    check('El campo de contraseña queda además deshabilitado',
+      await page.isDisabled('#loginPassword'));
+    igual('El botón anuncia que se entra en modo demostración',
+      (await page.textContent('#btnEntrar')).trim(), 'Entrar en modo demostración');
+
+    // --- Caso 2 (adaptado): un usuario no configurado se rechaza ---
     await page.fill('#loginUsuario', 'UsuarioQueNoExiste');
-    await page.fill('#loginPassword', 'spartans8327');
     await page.click('#btnEntrar');
     await page.waitForTimeout(700);
-    check('Caso 2: el acceso con usuario incorrecto se rechaza',
+    check('Caso 2: un usuario no configurado se rechaza',
       await page.isVisible('#modalLogin') && await page.isVisible('#errorLogin'));
-    igual('Caso 2: el mensaje es claro y amigable',
-      (await page.textContent('#errorLogin')).trim(), 'Usuario o contraseña incorrectos.');
     check('Caso 2: no se crea sesión',
       (await page.textContent('#chipSesionTexto')).includes('Modo consulta'));
 
-    // --- Caso 3: usuario correcto + contraseña incorrecta ---
-    await page.fill('#loginUsuario', 'Spartans8327');
-    await page.fill('#loginPassword', 'mal');
-    await page.click('#btnEntrar');
-    await page.waitForTimeout(700);
-    check('Caso 3: el acceso con contraseña incorrecta se rechaza',
-      await page.isVisible('#modalLogin') && await page.isVisible('#errorLogin'));
-    igual('Caso 3: el mensaje es el mismo, sin revelar cuál falló',
-      (await page.textContent('#errorLogin')).trim(), 'Usuario o contraseña incorrectos.');
-    check('Caso 3: no se crea sesión',
-      (await page.textContent('#chipSesionTexto')).includes('Modo consulta'));
-
-    // Campos vacíos
+    // Usuario vacío
     await page.fill('#loginUsuario', '');
-    await page.fill('#loginPassword', 'algo');
     await page.click('#btnEntrar');
     await page.waitForTimeout(300);
     check('Usuario vacío se rechaza con mensaje propio',
       (await page.textContent('#errorLogin')).includes('usuario'));
-    await page.fill('#loginUsuario', 'Spartans8327');
-    await page.fill('#loginPassword', '');
-    await page.click('#btnEntrar');
-    await page.waitForTimeout(300);
-    check('Contraseña vacía se rechaza con mensaje propio',
-      (await page.textContent('#errorLogin')).includes('contraseña'));
 
     // --- Caso 4: sin autenticar, solo consulta ---
     await page.click('#modalLogin [data-cerrar]');
@@ -589,11 +585,11 @@ function servidor() {
     check('Caso 4: el visitante no puede registrar movimientos',
       !(await page.isVisible('#vistaInicio [data-accion=\"nuevo-movimiento\"]')));
 
-    // --- Caso 1: usuario y contraseña correctos ---
-    await login('Spartans8327', 'spartans8327');
+    // --- Caso 1 (adaptado): el usuario configurado entra ---
+    await login('Spartans8327');
     await page.waitForTimeout(600);
-    igual('Caso 1: la sesión se crea',
-      (await page.textContent('#chipSesionTexto')).trim(), 'Sesión iniciada');
+    igual('Caso 1: se abre la sesión de demostración, señalada como tal',
+      (await page.textContent('#chipSesionTexto')).trim(), 'Modo demostración');
     check('Caso 1: vuelven las funciones de edición',
       await page.isVisible('#vistaInicio [data-accion=\"nuevo-movimiento\"]'));
     igual('Caso 1: los datos siguen visibles', await saldo(), '$9,500');
@@ -604,8 +600,9 @@ function servidor() {
     igual('Caso 5: el usuario autenticado puede escribir', await saldo(), '$9,550');
 
     // El correo técnico no aparece por ninguna parte de la interfaz.
-    igual('El pie muestra el usuario, no el correo',
-      (await page.textContent('#pieEstado')).trim(), 'Sesión: Spartans8327 · modo local');
+    igual('El pie muestra el usuario y advierte que no hay autenticación real',
+      (await page.textContent('#pieEstado')).trim(),
+      'Demostración: Spartans8327 · sin autenticación real');
     check('Ninguna pantalla visible muestra el correo técnico',
       !(await page.evaluate(() => document.body.innerText)).includes('@spartans8327.app'));
 

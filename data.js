@@ -7,17 +7,18 @@
    local que se usa es para preferencias de interfaz (ver script.js).
 
    Si config.js todavía no tiene credenciales, la aplicación arranca en
-   "modo local de prueba" para que se pueda evaluar la interfaz antes de
-   conectar Supabase. Ese modo se anuncia claramente en pantalla y no
-   sincroniza entre dispositivos.
+   MODO DEMOSTRACIÓN para poder revisar la interfaz antes de conectar
+   Supabase. Ese modo NO es un sistema de autenticación: no hay contraseña
+   que valer, no se pide ninguna y no se compara ni se guarda nada. Se
+   anuncia en pantalla y no sincroniza entre dispositivos.
    ========================================================================= */
 (function (global) {
   'use strict';
 
-  var CLAVE_LOCAL = 'spartans_finanzas_local_v1';
+  var CLAVE_DEMO = 'spartans_finanzas_demo_v1';
 
   var Datos = {
-    modo: 'local',        // 'supabase' | 'local'
+    modo: 'demo',         // 'supabase' (producción) | 'demo' (sin credenciales)
     cliente: null,
     usuario: null,
     equipoId: null,
@@ -155,19 +156,25 @@
   }
 
   /* ==================================================================
-     RESPALDO LOCAL (solo mientras no hay credenciales de Supabase)
+     MODO DEMOSTRACIÓN (solo mientras no hay credenciales de Supabase)
+
+     Existe para poder revisar y probar la interfaz sin un proyecto de
+     Supabase. NO autentica: no hay contraseñas, ni comprobación de
+     credenciales, ni nada que se le parezca. La sesión que produce va
+     marcada como "demostracion: true" para que la interfaz lo anuncie y
+     nunca se confunda con la autenticación de producción.
      ================================================================== */
 
   function leerLocal() {
     try {
-      var crudo = localStorage.getItem(CLAVE_LOCAL);
+      var crudo = localStorage.getItem(CLAVE_DEMO);
       if (crudo) return JSON.parse(crudo);
     } catch (e) { /* almacenamiento no disponible */ }
     return { config: null, movimientos: [], compras: [], sesion: null };
   }
 
   function escribirLocal(datos) {
-    try { localStorage.setItem(CLAVE_LOCAL, JSON.stringify(datos)); }
+    try { localStorage.setItem(CLAVE_DEMO, JSON.stringify(datos)); }
     catch (e) { console.warn('No se pudo guardar localmente:', e); }
   }
 
@@ -175,29 +182,34 @@
     return prefijo + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
   }
 
-  var backendLocal = {
+  var backendDemo = {
     async sesionActual() {
       var d = leerLocal();
-      return d.sesion ? { id: d.sesion, email: d.sesion } : null;
+      return d.sesion ? { id: d.sesion, email: d.sesion, demostracion: true } : null;
     },
     /*
-      El modo local NO es un sistema de autenticación: solo comprueba que el
-      usuario sea uno de los configurados en config.js para que la interfaz
-      se pueda probar. La verificación real de la contraseña la hace siempre
-      Supabase Auth, y la contraseña nunca se guarda en ningún sitio.
+      Abre una sesión de demostración. No recibe contraseña a propósito:
+      así es imposible que el modo demostración aparente haber validado
+      una credencial. Solo acepta usuarios declarados en config.js para
+      que el comportamiento sea predecible.
     */
-    async iniciarSesion(correo, password) {
-      if (!correo || !password) throw new Error('Escribe el usuario y la contraseña.');
-      var conocidas = Object.keys(configCuentas().cuentas).map(function (k) {
-        return String(configCuentas().cuentas[k]).toLowerCase();
+    async iniciarSesion(correo) {
+      if (Datos.modo !== 'demo') {
+        // Salvaguarda: con Supabase configurado esta función no debe
+        // ejecutarse jamás.
+        throw new Error('El modo demostración no está disponible: la autenticación la gestiona Supabase.');
+      }
+      var cuentas = configCuentas().cuentas;
+      var conocidas = Object.keys(cuentas).map(function (k) {
+        return String(cuentas[k]).toLowerCase();
       });
-      if (conocidas.indexOf(String(correo).toLowerCase()) === -1 || String(password).length < 6) {
-        throw new Error('Usuario o contraseña incorrectos.');
+      if (!correo || conocidas.indexOf(String(correo).toLowerCase()) === -1) {
+        throw new Error('Ese usuario no está configurado en config.js.');
       }
       var d = leerLocal();
       d.sesion = correo;
       escribirLocal(d);
-      return { id: correo, email: correo };
+      return { id: correo, email: correo, demostracion: true };
     },
     async cerrarSesion() {
       var d = leerLocal();
@@ -308,6 +320,35 @@
 
   function sb() { return Datos.cliente; }
 
+  /*
+    supabase-js guarda la sesión con la clave "sb-<proyecto>-auth-token".
+    Se borra a mano solo cuando el cierre de sesión normal ha fallado: así
+    una petición rechazada por el servidor nunca deja acceso residual en
+    este navegador.
+  */
+  function borrarSesionGuardada() {
+    // 1) A través del propio cliente: sirve con cualquier almacenamiento.
+    try {
+      var auth = sb() && sb().auth;
+      if (auth && auth.storage && auth.storageKey &&
+          typeof auth.storage.removeItem === 'function') {
+        auth.storage.removeItem(auth.storageKey);
+        auth.storage.removeItem(auth.storageKey + '-code-verifier');
+      }
+    } catch (e) {
+      console.warn('No se pudo limpiar la sesión del cliente:', e);
+    }
+    // 2) Respaldo directo en el navegador, por si cambiara la clave interna.
+    try {
+      if (typeof localStorage === 'undefined') return;
+      Object.keys(localStorage)
+        .filter(function (k) { return /^sb-.*-auth-token/.test(k); })
+        .forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {
+      console.warn('No se pudo limpiar la sesión guardada:', e);
+    }
+  }
+
   function revisar(respuesta) {
     if (respuesta.error) {
       var msg = respuesta.error.message || 'Error de conexión con Supabase.';
@@ -348,8 +389,30 @@
       }
       return r.data.user;
     },
+    /*
+      Cerrar sesión debe dejar el navegador sin acceso, pase lo que pase.
+
+      Si el servidor rechaza la petición —por ejemplo porque otro
+      dispositivo del equipo ya cerró la sesión de forma global, o porque
+      no hay conexión— supabase-js devuelve el error y DEJA la sesión
+      guardada; al recargar la página volvería a entrar. Por eso, ante
+      cualquier fallo se fuerza el cierre local.
+    */
     async cerrarSesion() {
-      await sb().auth.signOut();
+      var r = await sb().auth.signOut();
+      if (r && r.error) {
+        console.warn('Supabase Auth (cierre de sesión):', r.error.message);
+        // Segundo intento, solo local.
+        try { await sb().auth.signOut({ scope: 'local' }); } catch (e) { /* se comprueba al final */ }
+        // Último recurso: borrar la sesión guardada por supabase-js, que la
+        // conserva cuando el servidor rechaza la petición.
+        borrarSesionGuardada();
+      }
+      var comprobacion = await sb().auth.getSession();
+      if (comprobacion.data && comprobacion.data.session) {
+        borrarSesionGuardada();
+        throw new Error('No se pudo cerrar la sesión por completo. Cierra el navegador para asegurarte.');
+      }
     },
 
     // Selecciona el equipo de trabajo: el del usuario autenticado si hay
@@ -469,10 +532,12 @@
      ================================================================== */
 
   function backend() {
-    return Datos.modo === 'supabase' ? backendSupabase : backendLocal;
+    return Datos.modo === 'supabase' ? backendSupabase : backendDemo;
   }
 
   Datos.configurado = function () { return Datos.modo === 'supabase'; };
+  // true cuando NO hay Supabase: la sesión es de demostración, no autenticada.
+  Datos.esDemostracion = function () { return Datos.modo === 'demo'; };
   Datos.autenticado = function () { return !!Datos.usuario; };
   /*
     Nombre que ve el usuario. Nunca devuelve el correo técnico: si la sesión
@@ -481,6 +546,11 @@
   Datos.usuarioVisible = function () {
     if (!Datos.usuario) return '';
     return usuarioDeCorreo(Datos.usuario.email) || 'Cuenta del equipo';
+  };
+
+  // La sesión actual proviene del modo demostración, no de Supabase Auth.
+  Datos.sesionDeDemostracion = function () {
+    return !!(Datos.usuario && Datos.usuario.demostracion);
   };
 
   // Arranca el cliente y recupera la sesión existente (si la hay).
@@ -496,11 +566,11 @@
         });
         Datos.modo = 'supabase';
       } catch (e) {
-        Datos.modo = 'local';
+        Datos.modo = 'demo';
         Datos.error = 'No se pudo conectar con Supabase: ' + e.message;
       }
     } else {
-      Datos.modo = 'local';
+      Datos.modo = 'demo';
     }
 
     Datos.usuario = await backend().sesionActual();
@@ -531,18 +601,36 @@
   Datos.iniciarSesion = async function (usuario, password) {
     var nombre = String(usuario || '').trim();
     if (!nombre) throw new Error('Escribe el usuario del equipo.');
+
+    if (Datos.esDemostracion()) {
+      // La contraseña ni se pide ni se transmite: no hay nada que validar.
+      Datos.usuario = await backendDemo.iniciarSesion(correoDeUsuario(nombre));
+      return Datos.usuario;
+    }
+
     if (!password) throw new Error('Escribe la contraseña.');
-    Datos.usuario = await backend().iniciarSesion(correoDeUsuario(nombre), password);
+    Datos.usuario = await backendSupabase.iniciarSesion(correoDeUsuario(nombre), password);
     return Datos.usuario;
   };
 
-  // Expuesto solo para las pruebas automatizadas de la traducción.
+  // Expuestos solo para las pruebas automatizadas.
   Datos.__correoDeUsuario = correoDeUsuario;
   Datos.__usuarioDeCorreo = usuarioDeCorreo;
+  Datos.__backendDemoIniciarSesion = function (correo) {
+    return backendDemo.iniciarSesion(correo);
+  };
 
+  /*
+    El usuario en memoria se descarta SIEMPRE, incluso si el cierre remoto
+    falla: la aplicación debe volver al modo consulta sin excepción. El
+    error se vuelve a lanzar para que la interfaz pueda avisar.
+  */
   Datos.cerrarSesion = async function () {
-    await backend().cerrarSesion();
-    Datos.usuario = null;
+    try {
+      await backend().cerrarSesion();
+    } finally {
+      Datos.usuario = null;
+    }
   };
 
   Datos.cargarTodo = function () { return backend().cargarTodo(); };
