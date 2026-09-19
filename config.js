@@ -13,8 +13,8 @@
    NUNCA coloques aquí la "service_role key", contraseñas ni ningún secreto.
    ========================================================================= */
 window.SUPABASE_CONFIG = {
-  url: 'TU_PROJECT_URL',
-  anonKey: 'TU_ANON_KEY'
+  url: 'https://gcrnptrdooykwhxauztv.supabase.co',
+  anonKey: 'sb_publishable_OuC_1ZX304rMtjI7ZLqy1w_wVrIduZZ'
 };
 
 /* =========================================================================
