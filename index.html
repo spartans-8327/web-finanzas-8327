@@ -3,341 +3,681 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mis Finanzas</title>
+<meta name="description" content="Sistema financiero y de gestión de compras del equipo de robótica Spartans 83-27.">
+<meta name="theme-color" content="#0B0F16">
+<title>Mis Finanzas — Spartans 83-27</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230B0F16'/><path d='M16 5l9 4v7c0 5.5-3.8 9.7-9 11-5.2-1.3-9-5.5-9-11V9z' fill='none' stroke='%23EF3E4A' stroke-width='2.2'/><path d='M12 15h8M16 11v8' stroke='%2337D4E8' stroke-width='2' stroke-linecap='round'/></svg>">
 </head>
 <body>
 
-  <!-- Pantalla inicial: pedir dinero inicial -->
-  <div id="pantallaInicio" class="pantalla-inicio oculto">
-    <div class="tarjeta-inicio">
-      <h1>💰 Mis Finanzas</h1>
-      <p>¿Con cuánto dinero comienzas?</p>
-      <div class="campo-dinero">
-        <span>$</span>
-        <input type="number" id="inputDineroInicial" placeholder="10000" step="any" autofocus>
+<!-- ============ CAPA DE CARGA ============ -->
+<div id="pantallaCarga" class="pantalla-carga">
+  <div class="carga-marca">
+    <svg class="crest" viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M24 4l16 6.5v11C40 31.5 33.2 38.7 24 44 14.8 38.7 8 31.5 8 21.5v-11z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M17 23h14M24 16v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+    </svg>
+    <p class="carga-texto">Iniciando sistema…</p>
+    <div class="carga-barra"><span></span></div>
+  </div>
+</div>
+
+<!-- ============ ENCABEZADO ============ -->
+<header class="hud" id="encabezado" hidden>
+  <div class="hud-inner">
+    <div class="marca">
+      <svg class="crest" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 4l16 6.5v11C40 31.5 33.2 38.7 24 44 14.8 38.7 8 31.5 8 21.5v-11z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M17 23h14M24 16v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+      </svg>
+      <div class="marca-texto">
+        <span class="marca-titulo">MIS FINANZAS</span>
+        <span class="marca-sub">Spartans <b>83-27</b></span>
       </div>
-      <p class="error-mensaje oculto" id="errorDineroInicial"></p>
-      <button class="btn btn-primario btn-grande" id="btnComenzar">Comenzar</button>
+    </div>
+
+    <div class="hud-acciones">
+      <span class="chip-estado" id="chipSesion" data-modo="publico">
+        <i class="punto"></i><span id="chipSesionTexto">Modo consulta</span>
+      </span>
+      <button class="btn btn-ghost btn-sm" id="btnExportarRapido" title="Exportar a Excel">
+        <span class="ico">⤓</span><span class="solo-desktop">Excel</span>
+      </button>
+      <button class="btn btn-primario btn-sm" id="btnSesion">Iniciar sesión</button>
     </div>
   </div>
 
-  <!-- App principal -->
-  <div id="app" class="app oculto">
-    <header class="encabezado">
-      <h1>💰 Mis Finanzas</h1>
-      <button class="btn btn-texto" id="btnReiniciarDatos">Reiniciar datos</button>
-    </header>
+  <nav class="nav" id="navPrincipal" aria-label="Navegación principal">
+    <div class="nav-scroll">
+      <button class="nav-item activo" data-vista="inicio"><span class="nav-ico">◆</span>Inicio</button>
+      <button class="nav-item" data-vista="area" data-area="mecanica"><span class="nav-ico" style="color:#EF3E4A">⚙</span>Mecánica<span class="nav-badge" data-badge="mecanica"></span></button>
+      <button class="nav-item" data-vista="area" data-area="programacion"><span class="nav-ico" style="color:#37D4E8">⌁</span>Programación<span class="nav-badge" data-badge="programacion"></span></button>
+      <button class="nav-item" data-vista="area" data-area="diseno"><span class="nav-ico" style="color:#A78BFA">◈</span>Diseño<span class="nav-badge" data-badge="diseno"></span></button>
+      <button class="nav-item" data-vista="area" data-area="marketing"><span class="nav-ico" style="color:#F5B740">◉</span>Marketing<span class="nav-badge" data-badge="marketing"></span></button>
+      <button class="nav-item" data-vista="compras"><span class="nav-ico">▤</span>Compras<span class="nav-badge" data-badge="compras"></span></button>
+      <button class="nav-item" data-vista="historial"><span class="nav-ico">◷</span>Historial</button>
+      <button class="nav-item" data-vista="reportes"><span class="nav-ico">▦</span>Reportes</button>
+    </div>
+  </nav>
+</header>
 
-    <div class="layout">
-      <!-- COLUMNA IZQUIERDA: dinero -->
-      <div class="columna columna-izquierda">
+<!-- Aviso de configuración / modo local -->
+<div class="aviso" id="avisoModo" hidden>
+  <span class="aviso-ico">!</span>
+  <span id="avisoModoTexto"></span>
+  <button class="aviso-cerrar" id="btnCerrarAviso" aria-label="Cerrar aviso">&times;</button>
+</div>
 
-        <section class="tarjeta saldo-destacado">
-          <p class="saldo-etiqueta">DINERO DISPONIBLE</p>
-          <p class="saldo-monto" id="saldoDisponible">$0</p>
-          <button class="btn btn-primario btn-grande" id="btnAbrirMovimiento">+ Registrar movimiento</button>
-        </section>
+<!-- ============ PANTALLA: SIN DATOS PUBLICADOS ============ -->
+<section class="estado-vacio-pantalla" id="pantallaSinDatos" hidden>
+  <div class="panel panel-centro">
+    <h1 class="titulo-xl">Todavía no hay información publicada</h1>
+    <p class="texto-apoyo">El equipo aún no ha configurado su control financiero. Si formas parte de Spartans 83-27, inicia sesión para comenzar.</p>
+    <button class="btn btn-primario btn-grande" id="btnSesionVacio">Iniciar sesión</button>
+  </div>
+</section>
 
-        <section class="tarjeta resumen-financiero">
+<!-- ============ PANTALLA: DINERO INICIAL ============ -->
+<section class="estado-vacio-pantalla" id="pantallaInicio" hidden>
+  <div class="panel panel-centro panel-inicio">
+    <p class="kicker">Configuración inicial</p>
+    <h1 class="titulo-xl">¿Con cuánto dinero comienzas?</h1>
+    <p class="texto-apoyo">Este será el punto de partida del historial. Después podrás registrar ingresos y gastos; el saldo se calculará solo.</p>
+    <form id="formDineroInicial" novalidate>
+      <div class="campo-dinero campo-dinero-xl">
+        <span class="simbolo">$</span>
+        <input type="number" id="inputDineroInicial" placeholder="10000" step="any" inputmode="decimal" autocomplete="off">
+      </div>
+      <p class="error-mensaje" id="errorDineroInicial" hidden></p>
+      <button type="submit" class="btn btn-primario btn-grande btn-bloque">Comenzar</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APLICACIÓN ============ -->
+<main class="app" id="app" hidden>
+
+  <!-- ---------- VISTA: INICIO ---------- -->
+  <section class="vista" id="vistaInicio">
+    <div class="hero">
+      <div class="hero-principal panel panel-saldo">
+        <div class="lineas-hud" aria-hidden="true"></div>
+        <!-- Grafismo técnico: trazas de circuito como identidad del equipo. -->
+        <svg class="circuito" viewBox="0 0 240 200" aria-hidden="true" focusable="false">
+          <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M10 40h52l18 18h60"/>
+            <path d="M10 100h30l22-22h48l20 20h58"/>
+            <path d="M10 160h74l20-20h52"/>
+            <path d="M140 58v42M182 98v42"/>
+            <circle cx="140" cy="58" r="4"/>
+            <circle cx="182" cy="98" r="4"/>
+            <circle cx="104" cy="140" r="4"/>
+            <rect x="196" y="82" width="32" height="32" rx="4"/>
+            <path d="M228 90h10M228 98h10M228 106h10"/>
+          </g>
+        </svg>
+        <p class="kicker">Dinero disponible</p>
+        <p class="saldo" id="saldoDisponible">$0</p>
+        <p class="saldo-nota" id="saldoNota">Calculado a partir del historial completo</p>
+        <div class="hero-botones">
+          <button class="btn btn-primario" data-accion="nuevo-movimiento"><span class="ico">＋</span> Registrar movimiento</button>
+          <button class="btn btn-ghost" data-accion="nuevo-producto"><span class="ico">＋</span> Agregar producto</button>
+        </div>
+      </div>
+
+      <div class="hero-kpis">
+        <article class="panel kpi kpi-ingreso">
+          <p class="kpi-etiqueta">Ingresos <span class="kpi-periodo" id="kpiPeriodo1">del mes</span></p>
+          <p class="kpi-valor" id="kpiIngresos">+$0</p>
+          <p class="kpi-pie" id="kpiIngresosPie">0 movimientos</p>
+        </article>
+        <article class="panel kpi kpi-gasto">
+          <p class="kpi-etiqueta">Gastos <span class="kpi-periodo" id="kpiPeriodo2">del mes</span></p>
+          <p class="kpi-valor" id="kpiGastos">-$0</p>
+          <p class="kpi-pie" id="kpiGastosPie">0 movimientos</p>
+        </article>
+        <article class="panel kpi kpi-balance">
+          <p class="kpi-etiqueta">Balance del mes</p>
+          <p class="kpi-valor" id="kpiBalance">$0</p>
+          <p class="kpi-pie" id="kpiBalancePie">Ingresos menos gastos</p>
+        </article>
+        <article class="panel kpi kpi-compras">
+          <p class="kpi-etiqueta">Por comprar</p>
+          <p class="kpi-valor" id="kpiPendientes">$0</p>
+          <p class="kpi-pie" id="kpiPendientesPie">0 productos pendientes</p>
+        </article>
+      </div>
+    </div>
+
+    <div class="rejilla-2">
+      <section class="panel">
+        <header class="panel-head">
           <h2>Resumen financiero</h2>
-          <div class="resumen-grid">
-            <div class="resumen-item">
-              <span class="resumen-etiqueta">Dinero inicial</span>
-              <span class="resumen-valor" id="resumenInicial">$0</span>
-            </div>
-            <div class="resumen-item ingreso">
-              <span class="resumen-etiqueta">Ingresos</span>
-              <span class="resumen-valor" id="resumenIngresos">+$0</span>
-            </div>
-            <div class="resumen-item gasto">
-              <span class="resumen-etiqueta">Gastos</span>
-              <span class="resumen-valor" id="resumenGastos">-$0</span>
-            </div>
-            <div class="resumen-item disponible">
-              <span class="resumen-etiqueta">Disponible</span>
-              <span class="resumen-valor" id="resumenDisponible">$0</span>
-            </div>
+          <span class="sello" id="selloTotal">Histórico</span>
+        </header>
+        <div class="resumen-lista">
+          <div class="resumen-fila">
+            <span class="resumen-etiq"><i class="marca-color" style="background:#8A98AB"></i>Dinero inicial</span>
+            <span class="resumen-num" id="resumenInicial">$0</span>
           </div>
-        </section>
-
-        <section class="tarjeta">
-          <div class="seccion-header">
-            <h2>Historial de movimientos</h2>
+          <div class="resumen-fila">
+            <span class="resumen-etiq"><i class="marca-color" style="background:var(--verde)"></i>Ingresos</span>
+            <span class="resumen-num positivo" id="resumenIngresos">+$0</span>
           </div>
-
-          <div class="tabs-historial">
-            <button class="tab-btn activo" data-vista="mensual">Resumen mensual</button>
-            <button class="tab-btn" data-vista="completo">Ver todo el historial</button>
+          <div class="resumen-fila">
+            <span class="resumen-etiq"><i class="marca-color" style="background:var(--rojo)"></i>Gastos</span>
+            <span class="resumen-num negativo" id="resumenGastos">-$0</span>
           </div>
-
-          <!-- Vista mensual -->
-          <div id="vistaMensual" class="vista-historial">
-            <div class="navegador-mes">
-              <button class="btn btn-icono" id="btnMesAnterior">‹</button>
-              <span id="etiquetaMes" class="etiqueta-mes">Septiembre 2026</span>
-              <button class="btn btn-icono" id="btnMesSiguiente">›</button>
-            </div>
-
-            <div id="mesSinMovimientos" class="mensaje-vacio oculto">Sin movimientos registrados</div>
-
-            <div id="mesConMovimientos">
-              <div class="resumen-grid resumen-mensual">
-                <div class="resumen-item">
-                  <span class="resumen-etiqueta">Dinero inicial del periodo</span>
-                  <span class="resumen-valor" id="mesInicial">$0</span>
-                </div>
-                <div class="resumen-item ingreso">
-                  <span class="resumen-etiqueta">Ingresos</span>
-                  <span class="resumen-valor" id="mesIngresos">+$0</span>
-                </div>
-                <div class="resumen-item gasto">
-                  <span class="resumen-etiqueta">Gastos</span>
-                  <span class="resumen-valor" id="mesGastos">-$0</span>
-                </div>
-                <div class="resumen-item disponible">
-                  <span class="resumen-etiqueta">Saldo final</span>
-                  <span class="resumen-valor" id="mesSaldoFinal">$0</span>
-                </div>
-              </div>
-              <div class="conteos-mes">
-                <span><strong id="mesNumMovimientos">0</strong> movimientos</span>
-                <span><strong id="mesNumIngresos">0</strong> ingresos</span>
-                <span><strong id="mesNumGastos">0</strong> gastos</span>
-              </div>
-
-              <div id="categoriasMes" class="categorias-resumen"></div>
-
-              <div class="tabla-contenedor">
-                <table class="tabla-movimientos" id="tablaMovimientosMes">
-                  <thead>
-                    <tr>
-                      <th>Concepto</th>
-                      <th>Tipo</th>
-                      <th>Cantidad</th>
-                      <th>Fecha</th>
-                      <th>Saldo después</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
+          <div class="resumen-fila resumen-total">
+            <span class="resumen-etiq">Disponible</span>
+            <span class="resumen-num" id="resumenDisponible">$0</span>
           </div>
+        </div>
+        <div class="barra-proporcion" id="barraProporcion" aria-hidden="true"></div>
+        <p class="pie-nota" id="notaProporcion"></p>
+      </section>
 
-          <!-- Vista completa -->
-          <div id="vistaCompleta" class="vista-historial oculto">
-            <div class="filtros-historial">
-              <button class="filtro-btn activo" data-filtro="todos">Todos</button>
-              <button class="filtro-btn" data-filtro="ingreso">Ingresos</button>
-              <button class="filtro-btn" data-filtro="gasto">Gastos</button>
-              <select id="filtroCategoria" class="filtro-select">
-                <option value="todas">Todas las categorías</option>
-              </select>
-              <input type="date" id="filtroDesde" class="filtro-fecha" title="Desde">
-              <input type="date" id="filtroHasta" class="filtro-fecha" title="Hasta">
-            </div>
-            <div class="tabla-contenedor">
-              <table class="tabla-movimientos" id="tablaMovimientosCompleta">
-                <thead>
-                  <tr>
-                    <th>Concepto</th>
-                    <th>Tipo</th>
-                    <th>Cantidad</th>
-                    <th>Fecha</th>
-                    <th>Saldo después</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Distribución por área</h2>
+          <span class="sello">Gastos</span>
+        </header>
+        <div id="graficoAreasInicio" class="grafico-barras"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Actividad reciente</h2>
+        <button class="btn btn-link" data-ir="historial">Ver historial completo →</button>
+      </header>
+      <div id="actividadReciente" class="linea-tiempo"></div>
+    </section>
+
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Necesidades pendientes</h2>
+        <button class="btn btn-link" data-ir="compras">Ver lista de compras →</button>
+      </header>
+      <div id="pendientesInicio" class="rejilla-compras"></div>
+    </section>
+  </section>
+
+  <!-- ---------- VISTA: ÁREA ---------- -->
+  <section class="vista" id="vistaArea" hidden>
+    <div class="area-cabecera panel" id="areaCabecera">
+      <div class="lineas-hud" aria-hidden="true"></div>
+      <div class="area-cabecera-texto">
+        <p class="kicker" id="areaKicker">Área del equipo</p>
+        <h1 class="titulo-area"><span id="areaIcono" class="area-icono">⚙</span><span id="areaNombre">Mecánica</span></h1>
+        <p class="texto-apoyo" id="areaDescripcion"></p>
       </div>
-
-      <!-- COLUMNA DERECHA: lista de compras -->
-      <div class="columna columna-derecha">
-        <section class="tarjeta">
-          <div class="seccion-header">
-            <h2>🛒 Lista de compras</h2>
-            <button class="btn btn-primario" id="btnAbrirProducto">+ Agregar producto</button>
-          </div>
-
-          <div class="resumen-compras">
-            <div class="resumen-compra-item">
-              <span class="resumen-etiqueta">Pendientes</span>
-              <span class="resumen-valor" id="comprasPendientesTotal">$0</span>
-            </div>
-            <div class="resumen-compra-item">
-              <span class="resumen-etiqueta">Realizadas</span>
-              <span class="resumen-valor" id="comprasRealizadasTotal">$0</span>
-            </div>
-            <div class="resumen-compra-item">
-              <span class="resumen-etiqueta">Total estimado</span>
-              <span class="resumen-valor" id="comprasEstimadoTotal">$0</span>
-            </div>
-          </div>
-
-          <ul id="listaCompras" class="lista-compras"></ul>
-          <div id="listaComprasVacia" class="mensaje-vacio oculto">Tu lista de compras está vacía.</div>
-        </section>
+      <div class="area-cabecera-cifras">
+        <div><p class="mini-etiq">Gastado</p><p class="mini-valor negativo" id="areaGastos">$0</p></div>
+        <div><p class="mini-etiq">Ingresos</p><p class="mini-valor positivo" id="areaIngresos">+$0</p></div>
+        <div><p class="mini-etiq">Balance</p><p class="mini-valor" id="areaBalance">$0</p></div>
       </div>
     </div>
-  </div>
 
-  <!-- MODAL: Registrar / editar movimiento -->
-  <div class="modal-overlay oculto" id="modalMovimiento">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="tituloModalMovimiento">Registrar movimiento</h3>
-        <button class="btn-cerrar" data-cerrar="modalMovimiento">&times;</button>
+    <div class="rejilla-3">
+      <article class="panel mini-panel">
+        <p class="mini-etiq">Por comprar</p>
+        <p class="mini-valor-grande" id="areaPendientesMonto">$0</p>
+        <p class="pie-nota" id="areaPendientesNum">0 productos</p>
+      </article>
+      <article class="panel mini-panel">
+        <p class="mini-etiq">Ya comprado</p>
+        <p class="mini-valor-grande" id="areaCompradoMonto">$0</p>
+        <p class="pie-nota" id="areaCompradoNum">0 productos</p>
+      </article>
+      <article class="panel mini-panel">
+        <p class="mini-etiq">% del gasto del equipo</p>
+        <p class="mini-valor-grande" id="areaPorcentaje">0%</p>
+        <p class="pie-nota">Sobre los gastos totales</p>
+      </article>
+    </div>
+
+    <div class="rejilla-2">
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Categorías usadas</h2>
+          <span class="sello">Gastos del área</span>
+        </header>
+        <div id="areaCategorias" class="grafico-barras"></div>
+      </section>
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Movimientos del área</h2>
+          <span class="sello" id="areaNumMovimientos">0</span>
+        </header>
+        <div id="areaMovimientos" class="linea-tiempo"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Compras del área</h2>
+        <button class="btn btn-primario btn-sm solo-editor" data-accion="nuevo-producto-area">＋ Agregar producto</button>
+      </header>
+      <div id="areaCompras" class="rejilla-compras"></div>
+    </section>
+  </section>
+
+  <!-- ---------- VISTA: COMPRAS ---------- -->
+  <section class="vista" id="vistaCompras" hidden>
+    <div class="vista-head">
+      <div>
+        <p class="kicker">Necesidades del equipo</p>
+        <h1 class="titulo-xl">Lista de compras</h1>
       </div>
-      <form id="formMovimiento">
-        <input type="hidden" id="movimientoId">
-        <label>Concepto
-          <input type="text" id="movimientoConcepto" placeholder="Ej. Venta de playeras" maxlength="60">
-        </label>
-        <label>Tipo
-          <select id="movimientoTipo">
-            <option value="ingreso">Ingreso</option>
-            <option value="gasto">Gasto</option>
-          </select>
-        </label>
-        <label>Cantidad
-          <div class="campo-dinero">
-            <span>$</span>
-            <input type="number" id="movimientoCantidad" placeholder="500" step="any">
+      <button class="btn btn-primario" data-accion="nuevo-producto"><span class="ico">＋</span> Agregar producto</button>
+    </div>
+
+    <div class="rejilla-3">
+      <article class="panel mini-panel">
+        <p class="mini-etiq">Pendientes</p>
+        <p class="mini-valor-grande" id="comprasPendientes">$0</p>
+        <p class="pie-nota" id="comprasPendientesNum">0 productos por comprar</p>
+      </article>
+      <article class="panel mini-panel">
+        <p class="mini-etiq">Compradas</p>
+        <p class="mini-valor-grande" id="comprasCompradas">$0</p>
+        <p class="pie-nota" id="comprasCompradasNum">0 productos comprados</p>
+      </article>
+      <article class="panel mini-panel">
+        <p class="mini-etiq">Total estimado</p>
+        <p class="mini-valor-grande" id="comprasTotal">$0</p>
+        <p class="pie-nota" id="comprasRegistradasNum">0 registradas como gasto</p>
+      </article>
+    </div>
+
+    <div class="panel panel-filtros">
+      <div class="filtros">
+        <div class="grupo-segmentado" id="filtroEstadoCompras" role="group" aria-label="Filtrar por estado">
+          <button class="seg activo" data-estado="todos">Todas</button>
+          <button class="seg" data-estado="pendiente">Pendientes</button>
+          <button class="seg" data-estado="comprado">Compradas</button>
+          <button class="seg" data-estado="registrado">Registradas</button>
+        </div>
+        <select id="filtroAreaCompras" class="control" aria-label="Filtrar por área"></select>
+        <select id="filtroCategoriaCompras" class="control" aria-label="Filtrar por categoría"></select>
+        <input type="search" id="buscarCompras" class="control" placeholder="Buscar producto…" aria-label="Buscar producto">
+        <label class="check-agrupar"><input type="checkbox" id="agruparPorArea" checked> Agrupar por área</label>
+      </div>
+    </div>
+
+    <div id="contenedorCompras"></div>
+  </section>
+
+  <!-- ---------- VISTA: HISTORIAL ---------- -->
+  <section class="vista" id="vistaHistorial" hidden>
+    <div class="vista-head">
+      <div>
+        <p class="kicker">Registro permanente</p>
+        <h1 class="titulo-xl">Historial</h1>
+      </div>
+      <div class="vista-head-acciones">
+        <button class="btn btn-ghost btn-sm" id="btnExportarPeriodo">⤓ Exportar periodo</button>
+        <button class="btn btn-ghost btn-sm" id="btnExportarFiltrado">⤓ Exportar filtrado</button>
+      </div>
+    </div>
+
+    <div class="grupo-segmentado" id="tabsHistorial" role="group">
+      <button class="seg activo" data-vista-hist="mensual">Resumen mensual</button>
+      <button class="seg" data-vista-hist="completo">Todo el historial</button>
+    </div>
+
+    <!-- Vista mensual -->
+    <div id="histMensual">
+      <div class="panel navegador-mes">
+        <button class="btn btn-icono" id="btnMesAnterior" aria-label="Mes anterior">‹</button>
+        <div class="mes-actual">
+          <p class="mes-etiqueta" id="etiquetaMes">—</p>
+          <p class="pie-nota" id="mesSubEtiqueta"></p>
+        </div>
+        <button class="btn btn-icono" id="btnMesSiguiente" aria-label="Mes siguiente">›</button>
+      </div>
+
+      <div class="rejilla-4">
+        <article class="panel mini-panel">
+          <p class="mini-etiq">Dinero inicial del periodo</p>
+          <p class="mini-valor-grande" id="mesInicial">$0</p>
+          <p class="pie-nota" id="mesInicialNota"></p>
+        </article>
+        <article class="panel mini-panel">
+          <p class="mini-etiq">Ingresos</p>
+          <p class="mini-valor-grande positivo" id="mesIngresos">+$0</p>
+          <p class="pie-nota" id="mesNumIngresos">0 ingresos</p>
+        </article>
+        <article class="panel mini-panel">
+          <p class="mini-etiq">Gastos</p>
+          <p class="mini-valor-grande negativo" id="mesGastos">-$0</p>
+          <p class="pie-nota" id="mesNumGastos">0 gastos</p>
+        </article>
+        <article class="panel mini-panel destacado">
+          <p class="mini-etiq">Saldo final</p>
+          <p class="mini-valor-grande" id="mesSaldoFinal">$0</p>
+          <p class="pie-nota" id="mesNumMovimientos">0 movimientos</p>
+        </article>
+      </div>
+
+      <div class="rejilla-2">
+        <section class="panel">
+          <header class="panel-head"><h2>Gastos por área</h2><span class="sello" id="selloMesArea"></span></header>
+          <div id="mesPorArea" class="grafico-barras"></div>
+        </section>
+        <section class="panel">
+          <header class="panel-head"><h2>Gastos por categoría</h2><span class="sello" id="selloMesCategoria"></span></header>
+          <div id="mesPorCategoria" class="grafico-barras"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <header class="panel-head"><h2>Movimientos del mes</h2></header>
+        <div id="tablaMes"></div>
+      </section>
+    </div>
+
+    <!-- Vista completa -->
+    <div id="histCompleto" hidden>
+      <div class="panel panel-filtros">
+        <div class="filtros">
+          <div class="grupo-segmentado" id="filtroTipo" role="group" aria-label="Filtrar por tipo">
+            <button class="seg activo" data-tipo="todos">Todos</button>
+            <button class="seg" data-tipo="ingreso">Ingresos</button>
+            <button class="seg" data-tipo="gasto">Gastos</button>
           </div>
-        </label>
-        <label>Fecha
+          <select id="filtroArea" class="control" aria-label="Filtrar por área"></select>
+          <select id="filtroCategoria" class="control" aria-label="Filtrar por categoría"></select>
+          <label class="campo-fecha">Desde<input type="date" id="filtroDesde" class="control"></label>
+          <label class="campo-fecha">Hasta<input type="date" id="filtroHasta" class="control"></label>
+          <input type="search" id="buscarMovimientos" class="control" placeholder="Buscar…" aria-label="Buscar movimiento">
+          <button class="btn btn-ghost btn-sm" id="btnLimpiarFiltros">Limpiar</button>
+        </div>
+        <p class="pie-nota" id="resultadoFiltros"></p>
+      </div>
+      <section class="panel">
+        <div id="tablaCompleta"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ---------- VISTA: REPORTES ---------- -->
+  <section class="vista" id="vistaReportes" hidden>
+    <div class="vista-head">
+      <div>
+        <p class="kicker">Análisis y entrega de cuentas</p>
+        <h1 class="titulo-xl">Reportes</h1>
+      </div>
+    </div>
+
+    <section class="panel panel-exportar">
+      <div class="lineas-hud" aria-hidden="true"></div>
+      <header class="panel-head"><h2>Exportar a Excel</h2></header>
+      <p class="texto-apoyo">Genera un archivo <code>.xlsx</code> real con 5 hojas: resumen, movimientos, compras, resumen por área y resumen por categoría.</p>
+      <div class="exportar-botones">
+        <button class="btn btn-primario" id="btnExportarTodo">⤓ Exportar todo</button>
+        <button class="btn btn-ghost" id="btnExportarMesActual">⤓ Exportar periodo actual</button>
+        <button class="btn btn-ghost" id="btnExportarRango">⤓ Exportar rango…</button>
+      </div>
+      <div class="rango-exportar" id="rangoExportar" hidden>
+        <label class="campo-fecha">Desde<input type="date" id="expDesde" class="control"></label>
+        <label class="campo-fecha">Hasta<input type="date" id="expHasta" class="control"></label>
+        <select id="expArea" class="control" aria-label="Área a exportar"></select>
+        <button class="btn btn-primario btn-sm" id="btnExportarRangoConfirmar">Generar archivo</button>
+      </div>
+    </section>
+
+    <div class="rejilla-2">
+      <section class="panel">
+        <header class="panel-head"><h2>Gastos por área</h2><span class="sello">Histórico</span></header>
+        <div id="reporteAreas" class="grafico-barras"></div>
+      </section>
+      <section class="panel">
+        <header class="panel-head"><h2>Gastos por categoría</h2><span class="sello">Histórico</span></header>
+        <div id="reporteCategorias" class="grafico-barras"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <header class="panel-head"><h2>Ingresos y gastos por mes</h2></header>
+      <div id="reporteMeses" class="grafico-meses"></div>
+    </section>
+
+    <section class="panel">
+      <header class="panel-head"><h2>Evolución del saldo</h2></header>
+      <div id="reporteSaldo" class="grafico-linea"></div>
+    </section>
+
+    <section class="panel panel-peligro solo-editor" id="panelPeligro">
+      <header class="panel-head"><h2>Zona de riesgo</h2></header>
+      <p class="texto-apoyo">Reiniciar elimina de forma permanente la configuración, el historial completo y la lista de compras de este equipo.</p>
+      <button class="btn btn-peligro" id="btnReiniciarDatos">Reiniciar datos</button>
+    </section>
+  </section>
+
+  <footer class="pie">
+    <span>Spartans 83-27 · Sistema financiero del equipo</span>
+    <span id="pieEstado"></span>
+  </footer>
+</main>
+
+<!-- Botón flotante de acción rápida (móvil) -->
+<button class="fab solo-editor" id="fabAccion" hidden aria-label="Registrar movimiento">＋</button>
+
+<!-- ============ MODALES ============ -->
+
+<!-- Inicio de sesión -->
+<div class="overlay" id="modalLogin" hidden>
+  <div class="modal modal-login" role="dialog" aria-modal="true" aria-labelledby="tituloLogin">
+    <div class="lineas-hud" aria-hidden="true"></div>
+    <button class="cerrar" data-cerrar="modalLogin" aria-label="Cerrar">&times;</button>
+    <div class="login-marca">
+      <svg class="crest" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 4l16 6.5v11C40 31.5 33.2 38.7 24 44 14.8 38.7 8 31.5 8 21.5v-11z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M17 23h14M24 16v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+      </svg>
+      <h2 id="tituloLogin">MIS FINANZAS</h2>
+      <p class="login-sub">Spartans 83-27</p>
+    </div>
+    <form id="formLogin" novalidate>
+      <!-- Aviso del modo demostración: sustituye al campo de contraseña,
+           que se oculta porque en ese modo no hay nada que verificar. -->
+      <p class="aviso-linea aviso-demo" id="avisoLoginDemo" hidden>
+        <b>Modo demostración.</b> No hay proyecto de Supabase configurado, así que
+        <b>no se verifica ninguna credencial</b> y los datos se quedan en este
+        navegador. Configura <code>config.js</code> para activar el acceso real
+        con contraseña.
+      </p>
+      <label class="campo">Usuario
+        <input type="text" id="loginUsuario" autocomplete="username" placeholder="Spartans8327"
+               autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="60">
+      </label>
+      <label class="campo" id="campoPassword">Contraseña
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
+      </label>
+      <p class="error-mensaje" id="errorLogin" hidden></p>
+      <button type="submit" class="btn btn-primario btn-grande btn-bloque" id="btnEntrar">Iniciar sesión</button>
+    </form>
+    <p class="login-pie">Sin iniciar sesión puedes consultar la información del equipo, pero no modificarla.</p>
+  </div>
+</div>
+
+<!-- Movimiento -->
+<div class="overlay" id="modalMovimiento" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloModalMovimiento">
+    <header class="modal-head">
+      <h3 id="tituloModalMovimiento">Registrar movimiento</h3>
+      <button class="cerrar" data-cerrar="modalMovimiento" aria-label="Cerrar">&times;</button>
+    </header>
+    <form id="formMovimiento" novalidate>
+      <input type="hidden" id="movimientoId">
+      <div class="grupo-segmentado grupo-ancho" id="selectorTipo" role="group" aria-label="Tipo de movimiento">
+        <button type="button" class="seg seg-ingreso activo" data-tipo="ingreso">↑ Ingreso</button>
+        <button type="button" class="seg seg-gasto" data-tipo="gasto">↓ Gasto</button>
+      </div>
+      <label class="campo">Concepto
+        <input type="text" id="movimientoConcepto" placeholder="Ej. Donación, Venta, Transporte" maxlength="80">
+      </label>
+      <label class="campo">Cantidad
+        <span class="campo-dinero">
+          <span class="simbolo">$</span>
+          <input type="number" id="movimientoCantidad" placeholder="500" step="any" inputmode="decimal">
+        </span>
+      </label>
+      <div class="campo-doble">
+        <label class="campo">Fecha
           <input type="date" id="movimientoFecha">
         </label>
-        <label>Categoría (opcional)
-          <input type="text" id="movimientoCategoria" placeholder="Ej. Comida" maxlength="30">
+        <label class="campo">Área
+          <select id="movimientoArea"></select>
         </label>
-        <p class="error-mensaje oculto" id="errorMovimiento"></p>
-        <button type="submit" class="btn btn-primario btn-grande">Guardar movimiento</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL: Agregar / editar producto -->
-  <div class="modal-overlay oculto" id="modalProducto">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="tituloModalProducto">Agregar producto</h3>
-        <button class="btn-cerrar" data-cerrar="modalProducto">&times;</button>
       </div>
-      <form id="formProducto">
-        <input type="hidden" id="productoId">
-        <label>¿Qué necesitas comprar?
-          <input type="text" id="productoNombre" placeholder="Ej. Pintura" maxlength="60">
-        </label>
-        <label>Cantidad
-          <input type="number" id="productoCantidad" placeholder="2" step="1">
-        </label>
-        <label>Precio estimado
-          <div class="campo-dinero">
-            <span>$</span>
-            <input type="number" id="productoPrecio" placeholder="450" step="any">
-          </div>
-        </label>
-        <label>Categoría (opcional)
-          <select id="productoCategoria">
-            <option value="">Sin categoría</option>
-            <option value="Materiales">Materiales</option>
-            <option value="Escuela">Escuela</option>
-            <option value="Casa">Casa</option>
-            <option value="Comida">Comida</option>
-            <option value="Tecnología">Tecnología</option>
-            <option value="Otros">Otros</option>
-          </select>
-        </label>
-        <p class="error-mensaje oculto" id="errorProducto"></p>
-        <button type="submit" class="btn btn-primario btn-grande">Agregar a la lista</button>
-      </form>
-    </div>
+      <label class="campo">Categoría
+        <select id="movimientoCategoria"></select>
+      </label>
+      <label class="campo">Notas <span class="opcional">opcional</span>
+        <textarea id="movimientoNotas" rows="2" maxlength="300" placeholder="Detalle adicional…"></textarea>
+      </label>
+      <p class="error-mensaje" id="errorMovimiento" hidden></p>
+      <button type="submit" class="btn btn-primario btn-grande btn-bloque" id="btnGuardarMovimiento">Guardar movimiento</button>
+    </form>
   </div>
+</div>
 
-  <!-- MODAL: Registrar producto como gasto -->
-  <div class="modal-overlay oculto" id="modalGasto">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Registrar como gasto</h3>
-        <button class="btn-cerrar" data-cerrar="modalGasto">&times;</button>
-      </div>
-      <form id="formGasto">
-        <input type="hidden" id="gastoProductoId">
-        <p class="gasto-info">
-          <strong id="gastoConcepto"></strong><br>
-          <span id="gastoCantidadInfo"></span>
-        </p>
-        <label>Precio real
-          <div class="campo-dinero">
-            <span>$</span>
-            <input type="number" id="gastoPrecioReal" step="any">
-          </div>
+<!-- Producto -->
+<div class="overlay" id="modalProducto" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloModalProducto">
+    <header class="modal-head">
+      <h3 id="tituloModalProducto">Agregar producto</h3>
+      <button class="cerrar" data-cerrar="modalProducto" aria-label="Cerrar">&times;</button>
+    </header>
+    <form id="formProducto" novalidate>
+      <input type="hidden" id="productoId">
+      <label class="campo">¿Qué necesitas?
+        <input type="text" id="productoNombre" placeholder="Ej. Sensor de color" maxlength="80">
+      </label>
+      <div class="campo-doble">
+        <label class="campo">Cantidad
+          <input type="number" id="productoCantidad" placeholder="2" step="1" min="1" inputmode="numeric">
         </label>
-        <p class="ayuda-texto">Si no editas el precio, se usará el precio estimado.</p>
-        <label>Fecha
+        <label class="campo">Precio estimado <span class="opcional">total</span>
+          <span class="campo-dinero">
+            <span class="simbolo">$</span>
+            <input type="number" id="productoPrecio" placeholder="450" step="any" inputmode="decimal">
+          </span>
+        </label>
+      </div>
+      <p class="pie-nota" id="productoTotalEstimado"></p>
+      <div class="campo-doble">
+        <label class="campo">Área
+          <select id="productoArea"></select>
+        </label>
+        <label class="campo">Categoría
+          <select id="productoCategoria"></select>
+        </label>
+      </div>
+      <label class="campo">Notas <span class="opcional">opcional</span>
+        <textarea id="productoNotas" rows="2" maxlength="300" placeholder="Modelo, proveedor, enlace…"></textarea>
+      </label>
+      <p class="error-mensaje" id="errorProducto" hidden></p>
+      <button type="submit" class="btn btn-primario btn-grande btn-bloque" id="btnGuardarProducto">Agregar a la lista</button>
+    </form>
+  </div>
+</div>
+
+<!-- Registrar compra como gasto -->
+<div class="overlay" id="modalGasto" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloModalGasto">
+    <header class="modal-head">
+      <h3 id="tituloModalGasto">Registrar como gasto</h3>
+      <button class="cerrar" data-cerrar="modalGasto" aria-label="Cerrar">&times;</button>
+    </header>
+    <form id="formGasto" novalidate>
+      <input type="hidden" id="gastoProductoId">
+      <div class="resumen-producto" id="gastoResumenProducto"></div>
+      <label class="campo">Concepto
+        <input type="text" id="gastoConcepto" maxlength="80">
+      </label>
+      <div class="campo-doble">
+        <label class="campo">Precio real <span class="opcional">total</span>
+          <span class="campo-dinero">
+            <span class="simbolo">$</span>
+            <input type="number" id="gastoPrecioReal" step="any" inputmode="decimal">
+          </span>
+        </label>
+        <label class="campo">Fecha
           <input type="date" id="gastoFecha">
         </label>
-        <p class="error-mensaje oculto" id="errorGasto"></p>
-        <button type="submit" class="btn btn-primario btn-grande">Confirmar gasto</button>
-      </form>
+      </div>
+      <div class="aviso-linea" id="gastoTotalAviso"></div>
+      <div class="campo-doble">
+        <label class="campo">Área
+          <select id="gastoArea"></select>
+        </label>
+        <label class="campo">Categoría
+          <select id="gastoCategoria"></select>
+        </label>
+      </div>
+      <p class="error-mensaje" id="errorGasto" hidden></p>
+      <button type="submit" class="btn btn-primario btn-grande btn-bloque" id="btnConfirmarGasto">Confirmar gasto</button>
+    </form>
+  </div>
+</div>
+
+<!-- Duplicado -->
+<div class="overlay" id="modalDuplicado" hidden>
+  <div class="modal modal-chico" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <h3>Este producto ya fue registrado como gasto</h3>
+      <button class="cerrar" data-cerrar="modalDuplicado" aria-label="Cerrar">&times;</button>
+    </header>
+    <p class="texto-apoyo" id="textoDuplicado"></p>
+    <div class="modal-acciones">
+      <button class="btn btn-ghost" data-cerrar="modalDuplicado">Cancelar</button>
+      <button class="btn btn-peligro" id="btnRegistrarOtroGasto">Registrar otro gasto</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: Advertencia de gasto duplicado -->
-  <div class="modal-overlay oculto" id="modalDuplicado">
-    <div class="modal modal-pequeno">
-      <div class="modal-header">
-        <h3>Ya registrado</h3>
-        <button class="btn-cerrar" data-cerrar="modalDuplicado">&times;</button>
-      </div>
-      <p>Este producto ya fue registrado como gasto.</p>
-      <div class="modal-acciones">
-        <button class="btn btn-secundario" data-cerrar="modalDuplicado">Cancelar</button>
-        <button class="btn btn-primario" id="btnRegistrarOtroGasto">Registrar otro gasto</button>
-      </div>
+<!-- Confirmación genérica -->
+<div class="overlay" id="modalConfirmar" hidden>
+  <div class="modal modal-chico" role="dialog" aria-modal="true" aria-labelledby="tituloConfirmar">
+    <header class="modal-head">
+      <h3 id="tituloConfirmar">Confirmar</h3>
+      <button class="cerrar" data-cerrar="modalConfirmar" aria-label="Cerrar">&times;</button>
+    </header>
+    <p class="texto-apoyo" id="mensajeConfirmar"></p>
+    <div class="aviso-linea" id="detalleConfirmar" hidden></div>
+    <div class="modal-acciones">
+      <button class="btn btn-ghost" data-cerrar="modalConfirmar">Cancelar</button>
+      <button class="btn btn-peligro" id="btnConfirmarAccion">Sí, continuar</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: Confirmar eliminación (movimiento o producto) -->
-  <div class="modal-overlay oculto" id="modalConfirmarEliminar">
-    <div class="modal modal-pequeno">
-      <div class="modal-header">
-        <h3>Confirmar eliminación</h3>
-        <button class="btn-cerrar" data-cerrar="modalConfirmarEliminar">&times;</button>
-      </div>
-      <p id="mensajeConfirmarEliminar">¿Deseas eliminar este elemento?</p>
-      <div class="modal-acciones">
-        <button class="btn btn-secundario" data-cerrar="modalConfirmarEliminar">Cancelar</button>
-        <button class="btn btn-peligro" id="btnConfirmarEliminar">Sí, eliminar</button>
-      </div>
-    </div>
+<!-- Detalle de movimiento -->
+<div class="overlay" id="modalDetalle" hidden>
+  <div class="modal modal-chico" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <h3>Detalle del movimiento</h3>
+      <button class="cerrar" data-cerrar="modalDetalle" aria-label="Cerrar">&times;</button>
+    </header>
+    <div id="contenidoDetalle"></div>
   </div>
+</div>
 
-  <!-- MODAL: Reiniciar datos -->
-  <div class="modal-overlay oculto" id="modalReiniciar">
-    <div class="modal modal-pequeno">
-      <div class="modal-header">
-        <h3>Reiniciar datos</h3>
-        <button class="btn-cerrar" data-cerrar="modalReiniciar">&times;</button>
-      </div>
-      <p class="texto-advertencia">Esta acción eliminará todo tu historial, saldo y lista de compras. Esta acción no se puede deshacer.</p>
-      <div class="modal-acciones">
-        <button class="btn btn-secundario" data-cerrar="modalReiniciar">Cancelar</button>
-        <button class="btn btn-peligro" id="btnConfirmarReiniciar">Sí, eliminar todo</button>
-      </div>
-    </div>
-  </div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
 
-  <!-- Notificaciones tipo toast -->
-  <div id="toastContenedor" class="toast-contenedor"></div>
-
-  <script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="data.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
