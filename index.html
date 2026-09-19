@@ -485,13 +485,18 @@
       <p class="login-sub">Spartans 83-27</p>
     </div>
     <form id="formLogin" novalidate>
-      <label class="campo">Correo
-        <input type="email" id="loginEmail" autocomplete="username" placeholder="equipo@spartans8327.mx">
+      <label class="campo">Usuario
+        <input type="text" id="loginUsuario" autocomplete="username" placeholder="Spartans8327"
+               autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="60">
       </label>
       <label class="campo">Contraseña
         <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
       </label>
       <p class="error-mensaje" id="errorLogin" hidden></p>
+      <p class="aviso-linea aviso-local" id="avisoLoginLocal" hidden>
+        Modo local de prueba: la contraseña todavía no se verifica. La verificación
+        real la hará Supabase Auth en cuanto configures <code>config.js</code>.
+      </p>
       <button type="submit" class="btn btn-primario btn-grande btn-bloque" id="btnEntrar">Iniciar sesión</button>
     </form>
     <p class="login-pie">Sin iniciar sesión puedes consultar la información del equipo, pero no modificarla.</p>

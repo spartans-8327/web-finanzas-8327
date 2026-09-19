@@ -70,12 +70,12 @@ function servidor() {
   const saldo = () => page.textContent('#saldoDisponible').then(t => t.trim());
   const visible = sel => page.isVisible(sel);
 
-  async function login(email = 'equipo@spartans8327.mx', pass = 'spartans8327') {
+  async function login(usuario = 'Spartans8327', pass = 'spartans8327') {
     // Se usa el botón visible: el de la pantalla vacía o el del encabezado.
     const botonLogin = (await page.isVisible('#btnSesionVacio')) ? '#btnSesionVacio' : '#btnSesion';
     await page.click(botonLogin);
     await page.waitForSelector('#modalLogin:not([hidden])');
-    await page.fill('#loginEmail', email);
+    await page.fill('#loginUsuario', usuario);
     await page.fill('#loginPassword', pass);
     await page.click('#btnEntrar');
     await page.waitForSelector('#modalLogin', { state: 'hidden', timeout: 5000 });
@@ -515,6 +515,136 @@ function servidor() {
     // Insignias de navegación
     const badgeCompras = await page.locator('[data-badge="compras"]').textContent();
     igual('La navegación muestra las compras pendientes', badgeCompras.trim(), '0');
+
+    /* =====================================================================
+       ACCESO CON USUARIO Y CONTRASEÑA (6 casos obligatorios)
+       ===================================================================== */
+    bloque('ACCESO: USUARIO + CONTRASEÑA');
+
+    // Estas comprobaciones miran botones de la vista Inicio: hay que estar
+    // en ella para que "no visible" signifique "sin permiso" y no "otra vista".
+    await page.click('.nav-item[data-vista="inicio"]');
+    await page.waitForSelector('#vistaInicio:not([hidden])');
+    check('Punto de partida: con sesión, las acciones de edición se ven',
+      await page.isVisible('#vistaInicio [data-accion="nuevo-movimiento"]'));
+
+    // La pantalla de acceso no debe pedir ni mostrar ningún correo.
+    await page.click('#btnSesion'); // cerrar sesión para partir del modo público
+    await page.waitForTimeout(700);
+    await page.click('#btnSesion');
+    await page.waitForSelector('#modalLogin:not([hidden])');
+
+    igual('La etiqueta del primer campo es "Usuario"',
+      (await page.textContent('#formLogin label:first-of-type')).trim().split('\n')[0].trim(), 'Usuario');
+    check('Existe el campo de usuario', await page.isVisible('#loginUsuario'));
+    igual('No existe ningún campo de correo', await page.locator('#loginEmail').count(), 0);
+    igual('El campo no es de tipo email', await page.getAttribute('#loginUsuario', 'type'), 'text');
+    igual('El marcador de posición es el nombre de usuario',
+      await page.getAttribute('#loginUsuario', 'placeholder'), 'Spartans8327');
+    check('La pantalla de acceso no menciona ningún correo',
+      !/@/.test(await page.textContent('#modalLogin')));
+
+    // --- Caso 2: usuario incorrecto + contraseña correcta ---
+    await page.fill('#loginUsuario', 'UsuarioQueNoExiste');
+    await page.fill('#loginPassword', 'spartans8327');
+    await page.click('#btnEntrar');
+    await page.waitForTimeout(700);
+    check('Caso 2: el acceso con usuario incorrecto se rechaza',
+      await page.isVisible('#modalLogin') && await page.isVisible('#errorLogin'));
+    igual('Caso 2: el mensaje es claro y amigable',
+      (await page.textContent('#errorLogin')).trim(), 'Usuario o contraseña incorrectos.');
+    check('Caso 2: no se crea sesión',
+      (await page.textContent('#chipSesionTexto')).includes('Modo consulta'));
+
+    // --- Caso 3: usuario correcto + contraseña incorrecta ---
+    await page.fill('#loginUsuario', 'Spartans8327');
+    await page.fill('#loginPassword', 'mal');
+    await page.click('#btnEntrar');
+    await page.waitForTimeout(700);
+    check('Caso 3: el acceso con contraseña incorrecta se rechaza',
+      await page.isVisible('#modalLogin') && await page.isVisible('#errorLogin'));
+    igual('Caso 3: el mensaje es el mismo, sin revelar cuál falló',
+      (await page.textContent('#errorLogin')).trim(), 'Usuario o contraseña incorrectos.');
+    check('Caso 3: no se crea sesión',
+      (await page.textContent('#chipSesionTexto')).includes('Modo consulta'));
+
+    // Campos vacíos
+    await page.fill('#loginUsuario', '');
+    await page.fill('#loginPassword', 'algo');
+    await page.click('#btnEntrar');
+    await page.waitForTimeout(300);
+    check('Usuario vacío se rechaza con mensaje propio',
+      (await page.textContent('#errorLogin')).includes('usuario'));
+    await page.fill('#loginUsuario', 'Spartans8327');
+    await page.fill('#loginPassword', '');
+    await page.click('#btnEntrar');
+    await page.waitForTimeout(300);
+    check('Contraseña vacía se rechaza con mensaje propio',
+      (await page.textContent('#errorLogin')).includes('contraseña'));
+
+    // --- Caso 4: sin autenticar, solo consulta ---
+    await page.click('#modalLogin [data-cerrar]');
+    await page.waitForTimeout(300);
+    igual('Caso 4: el visitante consulta el saldo', await saldo(), '$9,500');
+    check('Caso 4: el visitante no puede registrar movimientos',
+      !(await page.isVisible('#vistaInicio [data-accion=\"nuevo-movimiento\"]')));
+
+    // --- Caso 1: usuario y contraseña correctos ---
+    await login('Spartans8327', 'spartans8327');
+    await page.waitForTimeout(600);
+    igual('Caso 1: la sesión se crea',
+      (await page.textContent('#chipSesionTexto')).trim(), 'Sesión iniciada');
+    check('Caso 1: vuelven las funciones de edición',
+      await page.isVisible('#vistaInicio [data-accion=\"nuevo-movimiento\"]'));
+    igual('Caso 1: los datos siguen visibles', await saldo(), '$9,500');
+
+    // --- Caso 5: el usuario autenticado opera con normalidad ---
+    await nuevoMovimiento({ concepto: 'Prueba de acceso', tipo: 'ingreso', cantidad: 50,
+      fecha: '2026-09-20', area: 'general', categoria: 'Otros' });
+    igual('Caso 5: el usuario autenticado puede escribir', await saldo(), '$9,550');
+
+    // El correo técnico no aparece por ninguna parte de la interfaz.
+    igual('El pie muestra el usuario, no el correo',
+      (await page.textContent('#pieEstado')).trim(), 'Sesión: Spartans8327 · modo local');
+    check('Ninguna pantalla visible muestra el correo técnico',
+      !(await page.evaluate(() => document.body.innerText)).includes('@spartans8327.app'));
+
+    // El nombre visible sobrevive a la recarga (se deriva del correo).
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#app:not([hidden])', { timeout: 8000 });
+    check('Tras recargar se conserva la sesión y el nombre de usuario',
+      (await page.textContent('#pieEstado')).includes('Spartans8327'));
+
+    // Deshacer el movimiento de prueba para no alterar el resto de la suite.
+    await page.click('.nav-item[data-vista=\"historial\"]');
+    await page.click('#tabsHistorial .seg[data-vista-hist=\"completo\"]');
+    await page.waitForTimeout(300);
+    await page.locator('#tablaCompleta tr', { hasText: 'Prueba de acceso' }).first()
+      .locator('[data-eliminar-mov]').click();
+    await page.waitForSelector('#modalConfirmar:not([hidden])');
+    await page.click('#btnConfirmarAccion');
+    await page.waitForSelector('#modalConfirmar', { state: 'hidden', timeout: 5000 });
+    await page.waitForTimeout(400);
+    await page.click('.nav-item[data-vista=\"inicio\"]');
+    igual('El estado queda como estaba antes de la prueba', await saldo(), '$9,500');
+
+    // --- Caso 6: cerrar sesión ---
+    await page.click('#btnSesion');
+    await page.waitForTimeout(700);
+    igual('Caso 6: la sesión se cierra',
+      (await page.textContent('#chipSesionTexto')).trim(), 'Modo consulta');
+    check('Caso 6: las funciones protegidas dejan de estar disponibles',
+      !(await page.isVisible('#vistaInicio [data-accion=\"nuevo-movimiento\"]')));
+    igual('Caso 6: el pie deja de mostrar la sesión',
+      (await page.textContent('#pieEstado')).trim(), 'Consulta pública · solo lectura');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#app:not([hidden])', { timeout: 8000 });
+    check('Caso 6: la sesión no revive al recargar',
+      (await page.textContent('#chipSesionTexto')).includes('Modo consulta'));
+
+    // Volver a entrar para el resto de las pruebas.
+    await login();
+    await page.waitForTimeout(600);
 
     /* =====================================================================
        §42 VALIDACIONES EN LA INTERFAZ

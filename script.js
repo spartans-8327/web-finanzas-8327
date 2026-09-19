@@ -132,6 +132,10 @@
     rellenarSelectores();
     aplicarPreferencias();
 
+    // Sin Supabase la contraseña no se comprueba: hay que decirlo donde se
+    // escribe, no solo en el aviso general de la parte superior.
+    mostrar(el('avisoLoginLocal'), !Datos.configurado());
+
     Datos.alCambiarSesion(function () {
       aplicarModoAcceso();
       cargarDatos();
@@ -226,7 +230,9 @@
     var chip = el('chipSesion');
     chip.dataset.modo = editor ? 'autenticado' : 'publico';
     texto('chipSesionTexto', editor ? 'Sesión iniciada' : 'Modo consulta');
-    chip.title = editor ? Datos.correoUsuario() : 'Estás viendo la información pública del equipo';
+    chip.title = editor
+      ? 'Sesión iniciada como ' + Datos.usuarioVisible()
+      : 'Estás viendo la información pública del equipo';
 
     var btn = el('btnSesion');
     btn.textContent = editor ? 'Cerrar sesión' : 'Iniciar sesión';
@@ -234,7 +240,7 @@
     btn.classList.toggle('btn-ghost', editor);
 
     texto('pieEstado', editor
-      ? 'Sesión: ' + Datos.correoUsuario() + (Datos.configurado() ? '' : ' · modo local')
+      ? 'Sesión: ' + Datos.usuarioVisible() + (Datos.configurado() ? '' : ' · modo local')
       : 'Consulta pública · solo lectura');
   }
 
@@ -1290,18 +1296,26 @@
   async function iniciarSesion(evento) {
     evento.preventDefault();
     mostrarError('errorLogin', '');
-    var email = el('loginEmail').value.trim();
+    var usuario = el('loginUsuario').value.trim();
     var pass = el('loginPassword').value;
-    if (!email) { mostrarError('errorLogin', 'Escribe el correo de la cuenta del equipo.'); return; }
-    if (!pass) { mostrarError('errorLogin', 'Escribe la contraseña.'); return; }
+    if (!usuario) {
+      mostrarError('errorLogin', 'Escribe el usuario del equipo.');
+      el('loginUsuario').focus();
+      return;
+    }
+    if (!pass) {
+      mostrarError('errorLogin', 'Escribe la contraseña.');
+      el('loginPassword').focus();
+      return;
+    }
 
     var boton = el('btnEntrar');
     ocupado(boton, true, 'Entrando…');
     try {
-      await Datos.iniciarSesion(email, pass);
+      await Datos.iniciarSesion(usuario, pass);
       cerrarModal('modalLogin');
       el('formLogin').reset();
-      toast('Sesión iniciada.', 'exito');
+      toast('Sesión iniciada como ' + Datos.usuarioVisible() + '.', 'exito');
       aplicarModoAcceso();
       await cargarDatos();
     } catch (e) {

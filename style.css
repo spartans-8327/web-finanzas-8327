@@ -717,6 +717,13 @@ input[type="date"].control { color-scheme: dark; }
 }
 .aviso-linea b { font-family: var(--mono); }
 
+.aviso-local {
+  background: rgba(245,183,64,.08);
+  border-color: rgba(245,183,64,.26);
+  color: #F1D293;
+}
+.aviso-local code { font-family: var(--mono); font-size: .92em; }
+
 .resumen-producto {
   padding: 13px; margin-bottom: 15px;
   background: var(--fondo-2); border: 1px solid var(--borde); border-radius: var(--radio-sm);

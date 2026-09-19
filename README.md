@@ -37,9 +37,10 @@ estáticos que se pueden abrir con cualquier servidor web.
 | `core.js` | Lógica financiera pura, sin DOM ni red (es la parte que se prueba) |
 | `data.js` | Sesión y CRUD contra Supabase |
 | `script.js` | Interfaz, navegación, render y exportación |
-| `config.js` | URL y clave pública de Supabase |
+| `config.js` | URL y clave pública de Supabase, y la relación usuario → cuenta |
 | `schema.sql` | Tablas, índices y políticas de seguridad |
 | `tests/core.test.js` | 149 pruebas de la lógica financiera |
+| `tests/auth.test.js` | 48 pruebas del acceso con usuario y contraseña |
 | `tests/ui.test.js` | 120 pruebas end-to-end en un navegador real |
 | `tests/rls.test.sql` | Pruebas de las políticas de seguridad contra PostgreSQL |
 
@@ -71,9 +72,39 @@ manipule el HTML, PostgreSQL rechaza cualquier escritura sin sesión válida.
 
 ### 2.3 Crear la cuenta del equipo
 
+En la aplicación se entra con **usuario y contraseña**; el usuario no escribe
+ni necesita conocer ningún correo. Supabase Auth, en cambio, identifica las
+cuentas por correo, así que se usa uno técnico que solo vive en `config.js`.
+
 1. **Authentication → Users → Add user**.
-2. Correo y contraseña del equipo (por ejemplo `equipo@spartans8327.mx`).
-3. Marca **Auto Confirm User** para no tener que confirmar el correo.
+2. En *Email* escribe el correo técnico que aparece en `config.js`:
+   `spartans8327@spartans8327.app`.
+3. Pon la contraseña que usará el equipo (mínimo 6 caracteres).
+4. Marca **Auto Confirm User**. Es imprescindible: ese dominio no recibe
+   correo, así que no habría forma de confirmar la cuenta.
+
+A partir de ahí, el equipo entra con:
+
+```text
+Usuario:     Spartans8327
+Contraseña:  la que acabas de poner
+```
+
+Ese correo es solo un identificador interno: no se muestra en la interfaz, no
+se pide al iniciar sesión y nunca se usa para enviar mensajes.
+
+**¿Ya tienes la cuenta creada con un correo real?** No hace falta rehacerla:
+escribe ese correo en `config.js` y el nombre de usuario seguirá funcionando.
+
+```js
+window.CUENTAS_CONFIG = {
+  cuentas: { 'Spartans8327': 'elcorreoquejausas@gmail.com' },
+  dominioCuentas: 'spartans8327.app'
+};
+```
+
+Para añadir otra persona en el futuro: créala en Supabase, agrégala como
+miembro en la tabla `equipo_miembros` y añade su línea a `cuentas`.
 
 ### 2.4 Colocar las claves públicas
 
@@ -138,7 +169,8 @@ y agrega la URL del sitio a *Site URL* / *Redirect URLs*.
 
 ### Primera vez
 
-1. Entra al sitio y pulsa **Iniciar sesión** con la cuenta del equipo.
+1. Entra al sitio, pulsa **Iniciar sesión** y escribe el usuario del equipo
+   (`Spartans8327`) y su contraseña.
 2. Escribe con cuánto dinero comienza el equipo y pulsa **Comenzar**.
 
 ### Día a día
@@ -202,6 +234,9 @@ usuarios autorizados sin rehacer la aplicación.
 ```bash
 # Lógica financiera (Node, sin dependencias)
 node tests/core.test.js
+
+# Acceso con usuario y contraseña (Node, con un Supabase simulado)
+node tests/auth.test.js
 
 # Interfaz completa en un navegador real (requiere playwright y xlsx)
 npm install playwright xlsx

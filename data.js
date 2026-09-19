@@ -26,6 +26,53 @@
   };
 
   /* ------------------------------------------------------------------
+     NOMBRE DE USUARIO <-> CORREO TÉCNICO
+
+     La interfaz solo conoce el nombre de usuario ("Spartans8327").
+     Supabase Auth solo conoce correos. Estas dos funciones traducen entre
+     ambos usando el mapa de config.js; no hay tabla ni consulta de por
+     medio, y la contraseña nunca pasa por aquí: la valida Supabase.
+     ------------------------------------------------------------------ */
+
+  function configCuentas() {
+    var c = global.CUENTAS_CONFIG || {};
+    return {
+      cuentas: c.cuentas || {},
+      dominio: c.dominioCuentas || 'spartans8327.app'
+    };
+  }
+
+  // 'Spartans8327' -> 'spartans8327@spartans8327.app'
+  function correoDeUsuario(usuario) {
+    var nombre = String(usuario || '').trim();
+    if (!nombre) return '';
+    // Si ya viene un correo completo se respeta: permite entrar con la
+    // cuenta original si el equipo la creó con su propio correo.
+    if (nombre.indexOf('@') !== -1) return nombre.toLowerCase();
+
+    var cfg = configCuentas();
+    var claves = Object.keys(cfg.cuentas);
+    for (var i = 0; i < claves.length; i++) {
+      if (claves[i].toLowerCase() === nombre.toLowerCase()) return cfg.cuentas[claves[i]];
+    }
+    return nombre.toLowerCase().replace(/\s+/g, '') + '@' + cfg.dominio;
+  }
+
+  // 'spartans8327@spartans8327.app' -> 'Spartans8327'
+  // Se usa al recargar la página: de la sesión de Supabase solo vuelve el
+  // correo, así que el nombre visible se reconstruye a partir de él.
+  function usuarioDeCorreo(correo) {
+    var email = String(correo || '').trim();
+    if (!email) return '';
+    var cfg = configCuentas();
+    var claves = Object.keys(cfg.cuentas);
+    for (var i = 0; i < claves.length; i++) {
+      if (String(cfg.cuentas[claves[i]]).toLowerCase() === email.toLowerCase()) return claves[i];
+    }
+    return email.split('@')[0];
+  }
+
+  /* ------------------------------------------------------------------
      TRADUCCIÓN ENTRE LA BASE DE DATOS Y LA APLICACIÓN
      La base usa snake_case; la aplicación usa camelCase.
      ------------------------------------------------------------------ */
@@ -131,15 +178,26 @@
   var backendLocal = {
     async sesionActual() {
       var d = leerLocal();
-      return d.sesion ? { email: d.sesion } : null;
+      return d.sesion ? { id: d.sesion, email: d.sesion } : null;
     },
-    async iniciarSesion(email, password) {
-      if (!email || !password) throw new Error('Escribe el correo y la contraseña.');
-      if (String(password).length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
+    /*
+      El modo local NO es un sistema de autenticación: solo comprueba que el
+      usuario sea uno de los configurados en config.js para que la interfaz
+      se pueda probar. La verificación real de la contraseña la hace siempre
+      Supabase Auth, y la contraseña nunca se guarda en ningún sitio.
+    */
+    async iniciarSesion(correo, password) {
+      if (!correo || !password) throw new Error('Escribe el usuario y la contraseña.');
+      var conocidas = Object.keys(configCuentas().cuentas).map(function (k) {
+        return String(configCuentas().cuentas[k]).toLowerCase();
+      });
+      if (conocidas.indexOf(String(correo).toLowerCase()) === -1 || String(password).length < 6) {
+        throw new Error('Usuario o contraseña incorrectos.');
+      }
       var d = leerLocal();
-      d.sesion = email;
+      d.sesion = correo;
       escribirLocal(d);
-      return { email: email };
+      return { id: correo, email: correo };
     },
     async cerrarSesion() {
       var d = leerLocal();
@@ -267,13 +325,26 @@
       var sesion = r.data && r.data.session;
       return sesion ? sesion.user : null;
     },
-    async iniciarSesion(email, password) {
-      var r = await sb().auth.signInWithPassword({ email: email, password: password });
+    async iniciarSesion(correo, password) {
+      var r = await sb().auth.signInWithPassword({ email: correo, password: password });
       if (r.error) {
+        // El detalle técnico queda en la consola para quien administre el
+        // proyecto; al usuario se le muestra un mensaje claro y breve.
+        console.warn('Supabase Auth:', r.error.message);
         var m = r.error.message || '';
-        if (/invalid login credentials/i.test(m)) throw new Error('Correo o contraseña incorrectos.');
-        if (/email not confirmed/i.test(m)) throw new Error('La cuenta aún no ha confirmado su correo.');
-        throw new Error(m || 'No se pudo iniciar sesión.');
+        if (/invalid login credentials|invalid credentials/i.test(m)) {
+          throw new Error('Usuario o contraseña incorrectos.');
+        }
+        if (/email not confirmed|not confirmed/i.test(m)) {
+          throw new Error('La cuenta del equipo todavía no está activada.');
+        }
+        if (/too many|rate limit|for security purposes/i.test(m)) {
+          throw new Error('Demasiados intentos seguidos. Espera un momento y vuelve a intentarlo.');
+        }
+        if (/fetch|network|failed to/i.test(m)) {
+          throw new Error('No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.');
+        }
+        throw new Error('No se pudo iniciar sesión. Inténtalo de nuevo.');
       }
       return r.data.user;
     },
@@ -403,8 +474,13 @@
 
   Datos.configurado = function () { return Datos.modo === 'supabase'; };
   Datos.autenticado = function () { return !!Datos.usuario; };
-  Datos.correoUsuario = function () {
-    return Datos.usuario ? (Datos.usuario.email || 'cuenta del equipo') : '';
+  /*
+    Nombre que ve el usuario. Nunca devuelve el correo técnico: si la sesión
+    viene de Supabase solo se conoce el correo, así que se traduce de vuelta.
+  */
+  Datos.usuarioVisible = function () {
+    if (!Datos.usuario) return '';
+    return usuarioDeCorreo(Datos.usuario.email) || 'Cuenta del equipo';
   };
 
   // Arranca el cliente y recupera la sesión existente (si la hay).
@@ -447,10 +523,22 @@
     });
   };
 
-  Datos.iniciarSesion = async function (email, password) {
-    Datos.usuario = await backend().iniciarSesion(String(email || '').trim(), password);
+  /*
+    Recibe el NOMBRE DE USUARIO tal como se escribe en la pantalla de acceso.
+    La traducción a correo ocurre aquí dentro; ni la interfaz ni el usuario
+    manejan nunca el correo técnico.
+  */
+  Datos.iniciarSesion = async function (usuario, password) {
+    var nombre = String(usuario || '').trim();
+    if (!nombre) throw new Error('Escribe el usuario del equipo.');
+    if (!password) throw new Error('Escribe la contraseña.');
+    Datos.usuario = await backend().iniciarSesion(correoDeUsuario(nombre), password);
     return Datos.usuario;
   };
+
+  // Expuesto solo para las pruebas automatizadas de la traducción.
+  Datos.__correoDeUsuario = correoDeUsuario;
+  Datos.__usuarioDeCorreo = usuarioDeCorreo;
 
   Datos.cerrarSesion = async function () {
     await backend().cerrarSesion();
